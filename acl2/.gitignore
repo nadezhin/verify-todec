@@ -1,0 +1,11 @@
+*.cert
+*.cert.out
+*.lx64fsl
+*.fasl
+*.port
+Makefile-tmp
+TAGS
+make.log
+*.SH
+*.LISP
+dream-allocation-adjustments.log
