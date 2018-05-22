@@ -15,7 +15,8 @@
     :pred radixp
     :fix radix-fix
     :equiv radix-equiv
-    :define t))
+    :define t)
+  (in-theory (disable radix-equiv)))
 
 (fty::deffixtype real
   :pred real/rationalp
@@ -55,11 +56,15 @@
   :returns (x pos-rationalp)
   (if (pos-rationalp x) x 1)
   ///
+  (defrule pos-rational-fix-when-pos-rationalp
+    (implies (pos-rationalp x)
+             (equal (pos-rational-fix x) x)))
   (fty::deffixtype pos-rational
     :pred pos-rationalp
     :fix pos-rational-fix
     :equiv pos-rational-equiv
-    :define t))
+    :define t)
+  (in-theory (disable pos-rational-equiv)))
 
 (define format-fix
   ((f formatp))
@@ -85,3 +90,4 @@
     :fix format-fix
     :equiv format-equiv
     :define t)
+(in-theory (disable format-equiv))

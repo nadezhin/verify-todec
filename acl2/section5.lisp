@@ -50,7 +50,7 @@
             (let ((x (pos-rational-fix x))
                   (D (radix-fix D)))
               (/ (sigm x D) D)))
-     :enable (pos-rational-fix sigm e-as-expe))))
+     :enable (sigm e-as-expe))))
 
 (acl2::with-arith5-help
  (defrule f-linear
@@ -67,5 +67,4 @@
 
 (defrule ordD-f
   (equal (ordD D (f x D)) 0)
-  :enable pos-rational-fix
   :use (:instance result-1-3 (k 0) (x (f x D))))

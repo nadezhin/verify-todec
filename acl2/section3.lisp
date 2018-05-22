@@ -53,11 +53,6 @@
   (+ (- (2^{W-1} f)) (- (P f)) 3)
   ///
   (fty::deffixequiv Qmin))
-;  (defruled Qmin-when-formatp
-;    (implies (formatp f)
-;             (equal (Qmin f)
-;                    (- (- 1 (bias f)) (- (prec f) 1))))
-;    :enable (2^{W-1}-when-formatp P-when-formatp bias)))
 
 (define Qmax
   ((f formatp "Floating point format"))
@@ -65,11 +60,6 @@
   (- (2^{W-1} f) (P f))
   ///
   (fty::deffixequiv Qmax)
-;  (defruled Qmax-when-formatp
-;    (implies (formatp f)
-;             (equal (Qmax f)
-;                    (- (bias f) (- (prec f) 1))))
-;    :enable (2^{W-1}-when-formatp P-when-formatp bias))
   (defruled Qmax-as-Qmin
     (equal (Qmax f)
            (+ (Qmin f) (* 2 (2^{W-1} f)) -3))
@@ -164,11 +154,11 @@
                  (f (format-fix f)))
              (- (max (- 1 (bias f)) (expe x 2))
                 (1- (prec f)))))
-    :enable (Qmin P ordD pos-rational-fix 2^{W-1}-as-bias))
+    :enable (Qmin P ordD 2^{W-1}-as-bias))
   (defruled q-as-expq
     (equal (q x f)
            (max (Qmin f) (expq (pos-rational-fix x) (P f) 2)))
-    :enable (Qmin P ordD pos-rational-fix 2^{W-1}-as-bias expq))
+    :enable (Qmin P ordD 2^{W-1}-as-bias expq))
   (defrule q-linear
     (<= (Qmin f) (q x f))
     :rule-classes :linear))
@@ -177,8 +167,7 @@
   (implies (and (drepp x f)
                 (< 0 x))
            (equal (q x f) (Qmin f)))
-  :enable (pos-rational-fix
-           drepp q-as-expq expq expo-as-expe Qmin P 2^{W-1}-as-bias))
+  :enable (drepp q-as-expq expq expo-as-expe Qmin P 2^{W-1}-as-bias))
 
 (defrule q-when-nrepp
   (implies (nrepp x f)
@@ -219,9 +208,8 @@
             (posp (c x f)))
    :rule-classes :type-prescription
    :cases ((pos-rationalp x))
-   :hints (("subgoal 2" :in-theory (enable sigc)))
-   :enable (pos-rational-fix
-            drepp exactp expo-as-expe c-as-sigc spd sig
+   :hints (("subgoal 2" :in-theory (enable sigc pos-rational-fix)))
+   :enable (drepp exactp expo-as-expe c-as-sigc spd sig
             Qmin 2^{W-1}-as-bias P expq)))
 
 (acl2::with-arith5-nonlinear-help
@@ -230,8 +218,7 @@
                  (< 0 x))
             (< (c x f) (2^{P-1} f)))
   :rule-classes :linear
-  :enable (pos-rational-fix
-           drepp expo-as-expe c-as-sigc Qmin
+  :enable (drepp expo-as-expe c-as-sigc Qmin
            2^{W-1}-as-bias 2^{P-1} expq)
   :use (:instance expe>=
                   (b 2)
@@ -272,7 +259,7 @@
              (and (equal (q x f) q)
                   (equal (c x f) c))))
   :cases ((<= (2^{P-1} f) c))
-  :enable (pos-rational-fix 2^{P-1} c q ordD expq)
+  :enable (2^{P-1} c q ordD expq)
   :hints
   (("subgoal 2" :use ((:instance expe-shift
                                  (b 2)
@@ -317,7 +304,6 @@
                               (< c (2^{P-1} f))
                               (= q (Qmin f)))))))
      :rule-classes ()
-     :enable pos-rational-fix
      :hints (("subgoal 8" :in-theory (enable nrepp c))
              ("subgoal 3" :in-theory (enable drepp c))
              ("subgoal 2" :in-theory (enable Qmax-as-Qmin)))))

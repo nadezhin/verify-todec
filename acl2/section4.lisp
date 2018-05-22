@@ -56,5 +56,4 @@
 (defrule v-in-Rv
   (implies (pos-rationalp v)
            (in-tau-intervalp v (Rv v f)))
-  :enable pos-rational-fix
   :use fix-v-in-Rv)

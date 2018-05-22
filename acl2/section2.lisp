@@ -67,7 +67,7 @@
                  (radixp D))
             (equal (ordD D (* d_ (expt D r)))
                    (+ r (ordD D d_))))
-   :enable (ordD pos-rational-fix pos-rationalp)
+   :enable ordD
    :use (:instance expe-shift (b D) (x d_) (n r))))
 
 (defruled result-1-6
@@ -82,7 +82,7 @@
                     (<= 1 x)
                     (radixp D))
                (equal (ordD D (fl x)) (ordD D x)))
-      :enable (ordD pos-rational-fix)
+      :enable (ordD pos-rationalp)
       :use ((:instance expe-unique (b D) (n (expe (fl x) D)))
             (:instance expe-lower-bound (b D) (x (fl x)))
             (:instance expe-upper-bound (b D) (x (fl x)))

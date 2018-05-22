@@ -14,6 +14,16 @@
                 (natp i))
            (posp (expt D i)))
   :rule-classes :type-prescription)
+#|
+(defrule D-ary-when-positive-rational
+  (implies (and (finite-positivep x f)
+                (radixp D)
+                (evenp D))
+           (let ((i (ordD (* (MAX_VALUE f) (expt D (Qmin f))) D)))
+             (has-D-length x i D)))
+  :enable has-D-length
+  )
+  |#
 
 (local
  (acl2::with-arith5-help
