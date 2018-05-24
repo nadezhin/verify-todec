@@ -65,6 +65,17 @@
            (+ (Qmin f) (* 2 (2^{W-1} f)) -3))
     :enable Qmin))
 
+(define Cmax
+  ((f formatp))
+  :returns (Cmax (and (integerp Cmax) (< 1 Cmax))
+                 :rule-classes :type-prescription)
+  (- (* 2 (2^{P-1} f)) 1)
+  ///
+  (fty::deffixequiv Cmax)
+  (defrule Cmax-linear
+    (<= 3 (Cmax f))
+    :rule-classes :linear))
+
 (define MIN_VALUE
   ((f formatp "Floating point format"))
   :returns (v (and (rationalp v) (< 0 v))
@@ -96,21 +107,18 @@
             (spn (format-fix f)))
      :enable (Qmin 2^{P-1} 2^{W-1}-as-bias spn))))
 
-(define MAX_VALUE
+(acl2::with-arith5-help
+ (define MAX_VALUE
   ((f formatp "Floating point format"))
-  :returns (v (and (rationalp v) (< 0 v)) :rule-classes :type-prescription
-              :hints (("goal" :use (:instance Positive
-                                              (x (- (* 2 (2^{P-1} f)) 1))
-                                              (y (expt 2 (Qmax f))))))
-              )
-  (* (- (* 2 (2^{P-1} f)) 1) (expt 2 (Qmax f)))
+  :returns (v (and (rationalp v) (< 0 v)) :rule-classes :type-prescription)
+  (* (Cmax f) (expt 2 (Qmax f)))
   ///
   (fty::deffixequiv MAX_VALUE)
   (acl2::with-arith5-help
    (defruled MAX_VALUE-as-lpn
      (equal (MAX_VALUE f)
             (lpn (format-fix f)))
-     :enable (Qmax 2^{W-1}-as-bias 2^{P-1} P lpn bias))))
+     :enable (Qmax Cmax 2^{W-1}-as-bias 2^{P-1} P lpn bias)))))
 
 (defruled float-constants
   (let ((f (sp)))
@@ -119,6 +127,7 @@
          (equal (bias f) 127)
          (equal (Qmin f) -149)
          (equal (Qmax f) 104)
+         (equal (Cmax f) #xffffff)
          (equal (MIN_VALUE f) #fx1p-149)
          (equal (MIN_NORMAL f) #fx1p-126)
          (equal (MAX_VALUE f) #fx1.fffffep127)))
@@ -131,6 +140,7 @@
          (equal (bias f) 1023)
          (equal (Qmin f) -1074)
          (equal (Qmax f) 971)
+         (equal (Cmax f) #x1fffffffffffff)
          (equal (MIN_VALUE f) #fx1p-1074)
          (equal (MIN_NORMAL f) #fx1p-1022)
          (equal (MAX_VALUE f) #fx1.fffffffffffffp1023)))
@@ -197,6 +207,7 @@
    (< (c x f) (* 2 (2^{P-1} f)))
   :rule-classes :linear
   :enable (c-as-sigc sigc-upper-bound Qmin 2^{P-1} expq)
+  :cases ((< (c x f) (* 2 (2^{P-1} f))))
   :use (:instance expe>=
                   (b 2)
                   (x (pos-rational-fix x))
@@ -225,7 +236,7 @@
                   (x (pos-rational-fix x))
                   (n (- 2 (2^{W-1} f))))))
 
-(defrule c-linear-when-nrepp
+(defrule c-lower-bound-when-nrepp
   (implies (nrepp x f)
            (<= (2^{P-1} f) (c x f)))
   :rule-classes :linear
@@ -238,12 +249,18 @@
   (implies (nrepp x f)
            (and (integerp (c x f)) (< 1 (c x f))))
   :rule-classes :type-prescription
-  :use c-linear-when-nrepp
+  :use c-lower-bound-when-nrepp
   :enable (pos-rational-fix
            Qmin P 2^{W-1}-as-bias
            c-as-sigc sigc sigm sig
            nrepp exactp q ordD
            expo-as-expe bias expq)))
+
+(defrule c-upper-bound-when-nrepp
+  (implies (nrepp x f)
+           (<= (c x f) (Cmax f)))
+  :rule-classes :linear
+  :enable Cmax)
 
 (acl2::with-arith5-help
  (defruled unique-c*2^q
@@ -274,7 +291,7 @@
                                 (p (P f))
                                 (x (* c (expt 2 q))))))))
 
-(define finite-positivep
+(define finite-positive-binary-p
   ((x real/rationalp "Floating point value")
    (f formatp "Floating point format"))
   :returns (yes booleanp)
@@ -282,15 +299,15 @@
        (or (nrepp x f)
            (drepp x f)))
   ///
-  (defrule finite-positivep-fwd
-    (implies (finite-positivep x f)
+  (defrule finite-positive-binary-fwd
+    (implies (finite-positive-binary-p x f)
              (and (pos-rationalp x)
                   (formatp f)))
     :rule-classes :forward-chaining
     :enable (nrepp drepp))
   (acl2::with-arith5-help
-   (defrule finite-positivep-necc
-     (implies (finite-positivep x f)
+   (defrule finite-positive-binary-necc
+     (implies (finite-positive-binary-p x f)
               (let ((q (q x f))
                     (c (c x f)))
                 (and (= x (* c (expt 2 q)))
@@ -299,7 +316,7 @@
                      (<= q (Qmax f))
                      (integerp c)
                      (or (and (<= (2^{P-1} f) c)
-                              (< c (* 2 (2^{P-1} f))))
+                              (<= c (Cmax f)))
                          (and (< 0 c)
                               (< c (2^{P-1} f))
                               (= q (Qmin f)))))))
@@ -308,7 +325,7 @@
              ("subgoal 3" :in-theory (enable drepp c))
              ("subgoal 2" :in-theory (enable Qmax-as-Qmin)))))
   (acl2::with-arith5-nonlinear-help
-   (defrule finite-positivep-suff
+   (defrule finite-positive-binary-suff
      (implies (and (formatp f)
                    (integerp q)
                    (<= (Qmin f) q)
@@ -319,7 +336,7 @@
                        (and (< 0 c)
                             (< c (2^{P-1} f))
                             (= q (Qmin f)))))
-              (finite-positivep (* c (expt 2 q)) f))
+              (finite-positive-binary-p (* c (expt 2 q)) f))
      :cases ((<= (2^{P-1} f) c))
      :hints
      (("subgoal 2"
@@ -328,16 +345,9 @@
        :use (:instance spd-mult
                        (r (* c (expt 2 q)))
                        (m c)))
-      ("subgoal 1" :in-theory (enable 2^{P-1}
-                                      Qmin
-                                      Qmax
-                                      P
-                                      2^{W-1}-as-bias
-                                      nrepp
-                                      expq
-                                      bias
-                                      exactp sig
-                                      expo-as-expe)
+      ("subgoal 1" :in-theory (enable 2^{W-1}-as-bias
+                                      Qmin Qmax 2^{P-1} P
+                                      nrepp exactp sig expq bias expo-as-expe)
        :expand (expt 2 (expw f))
        :use ((:instance fp-rep-qc-unique
                        (b 2)
@@ -352,6 +362,25 @@
                       (x c)
                       (n (1- (P f))))))))))
 
+(defrule q-linear-when-finite-positive-binary
+  (implies (finite-positive-binary-p x f)
+           (<= (q x f) (Qmax f)))
+  :rule-classes :linear
+  :use finite-positive-binary-necc)
+
+(defrule c-type-when-finite-positive-binary
+  (implies (finite-positive-binary-p x f)
+           (posp (c x f)))
+  :rule-classes :type-prescription
+  :use finite-positive-binary-necc)
+
+(defrule c-linear-when-finite-positive-binary
+  (implies (finite-positive-binary-p x f)
+           (<= (c x f) (Cmax f)))
+  :rule-classes :linear
+  :enable Cmax
+  :use finite-positive-binary-necc)
+
 (rule
- (not (finite-positivep #f1.2 (dp)))
+ (not (finite-positive-binary-p #f1.2 (dp)))
  :enable (dp))

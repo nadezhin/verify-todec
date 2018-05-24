@@ -8,12 +8,12 @@
 ; Section 2 of the paper
 
 (define ordD
-  ((d radixp)
+  ((D radixp)
    (x pos-rationalp))
-  :returns (d integerp :rule-classes ())
-  (let ((d (radix-fix d))
+  :returns (ordD integerp :rule-classes ())
+  (let ((D (radix-fix D))
         (x (pos-rational-fix x)))
-    (1+ (expe x d)))
+    (1+ (expe x D)))
   ///
   (fty::deffixequiv ordD))
 
@@ -48,6 +48,28 @@
                   (b (radix-fix D))
                   (x (pos-rational-fix x))
                   (n (1- k))))
+
+(defrule ordD-1
+  (equal (ordD D 1) 1)
+  :use (:instance result-1-3 (x 1) (k 1)))
+
+(acl2::with-arith5-help
+ (defrule ordD-expt-D
+   (implies (and (radixp D)
+                 (integerp k))
+            (equal (ordD D (expt D k)) (+ k 1)))
+   :use (:instance result-1-3 (x (expt D k)) (k (+ k 1)))))
+
+(defrule ordD-D
+  (implies (radixp D)
+           (equal (ordD D D) 2))
+  :expand (expt D 1)
+  :use (:instance ordD-expt-D (k 1)))
+
+(defrule ordD-/D
+  (implies (radixp D)
+           (equal (ordD D (/ D)) 0))
+  :use (:instance ordD-expt-D (k -1)))
 
 (defruled result-1-4
   (implies (< (pos-rational-fix x)
