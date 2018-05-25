@@ -63,9 +63,23 @@
   (defrule fix-v-in-Rv
     (in-tau-intervalp (pos-rational-fix v) (Rv v f))
     :rule-classes ())
+  (defrule tau-interval-lo-Rv-type
+    (rationalp (tau-interval-lo (Rv v f)))
+    :rule-classes :type-prescription
+    :enable tau-interval-lo)
+  (defrule tau-interval-hi-Rv-type
+    (rationalp (tau-interval-hi (Rv v f)))
+    :rule-classes :type-prescription
+    :enable tau-interval-hi)
+  (defrule width-Rv-type
+    (and (rationalp (- (tau-interval-hi (Rv v f))
+                       (tau-interval-lo (Rv v f))))
+         (< 0 (- (tau-interval-hi (Rv v f))
+                 (tau-interval-lo (Rv v f)))))
+    :rule-classes :type-prescription
+    :enable (tau-interval-lo tau-interval-hi))
   (acl2::with-arith5-help
-   (defruled
-     width-Rv
+   (defruled width-Rv
      (let ((q (q v f))
            (c (c v f))
            (Rv (Rv v f)))
@@ -92,3 +106,5 @@
                   (in-tau-intervalp w (Rv v f)))))
    :rule-classes ()
    :enable Rv)
+
+(in-theory (disable tau-intervalp in-tau-intervalp tau-interval-lo tau-interval-hi))

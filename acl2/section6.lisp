@@ -1,6 +1,3 @@
-#|
-(include-book "rtl/rel11/portcullis" :dir :system)
-|#
 (in-package "RTL")
 (include-book "section5")
 
@@ -262,7 +259,7 @@
        :use (:instance expt-natp
                        (D (radix-fix D))
                        (i (1- (acl2::pos-fix i))))))))))
-#|
+
 (acl2::with-arith5-help
  (define algo1-measure
    ((i posp)
@@ -270,164 +267,85 @@
     (f formatp)
     (D radixp))
    :returns (measure natp)
-   (let* ((i (acl2::pos-fix i))
-          (Rv (Rv v f))
-          (wid (- (tau-interval-hi Rv) (tau-interval-lo Rv)))
-          (r (ordD D wid))
-          (e (e v D))
-          (n (acl2::pos-fix (+ 1 e (- r)))))
+   (let ((i (acl2::pos-fix i))
+         (n (+ 2 (- (e v D) (e (MIN_VALUE f) D)))))
      (nfix (- n i)))
-   :guard-hints (("goal" :in-theory (enable Rv vl vr)))
    ///
    (fty::deffixequiv algo1-measure)
-   (acl2::with-arith5-nonlinear-help
-   (defrule algo1-measure-lemma
-     (implies (and ;(evenp (radix-fix D))
-                (radixp D)
-                   ;(finite-positive-binary-p
-                   ; (pos-rational-fix v)
-                   ; (format-fix f))
-               (not (in-tau-intervalp (u_i i v d) (Rv v f)))
-               (not (in-tau-intervalp (w_i i v d) (Rv v f)))
-               )
-              (< (algo1-measure (+ 1 (acl2::pos-fix i)) v f D)
-                 (algo1-measure i v f d)))
-     :rule-classes :linear
-     :enable (w_i-as-u_i u_i-linear)
-     :disable (in-tau-intervalp tau-interval-lo tau-interval-hi)
-     :use (;(:instance has-D-length-when-finite-positive-binary
-           ;           (v (pos-rational-fix v))
-           ;           (f (format-fix f))
-           ;           (D (radix-fix D)))
-;       (:instance u_i-when-has-D-length)
-         ;  (:instance result-1-4
-         ;'             (D (radix-fix D))
-         ;             (x (- (tau-interval-hi (Rv v f))
-         ;                   (tau-interval-lo (Rv v f))))
-         ;             (y (expt (radix-fix D) (- (e v D) (acl2::pos-fix i)))))
-           (:instance u-or-w-in-Rv
-                      (u (u_i i v D))
-                      (w (w_i i v D))))
-     :hints (("subgoal 4" :cases ((<= (ordD D (- (tau-interval-hi (Rv v f))
-                                                 (tau-interval-lo (Rv v f))))
-                                      (+ 1 (e v D) (- (acl2::pos-fix i))))))
-             ("subgoal 504.2"; :in-theory (enable ordD-expt-D)
+   (acl2::with-arith5-help
+    (defrule algo1-measure-lemma
+      (implies (and (not (in-tau-intervalp (u_i i v D) (Rv v f)))
+                    (not (in-tau-intervalp (w_i i v D) (Rv v f))))
+               (< (algo1-measure (+ 1 (acl2::pos-fix i)) v f D)
+                  (algo1-measure i v f D)))
+      :rule-classes :linear
+      :enable (w_i-as-u_i)
+      :use ((:instance u-or-w-in-Rv
+                       (u (u_i i v D))
+                       (w (w_i i v D)))
+            u_i-linear
+            lemma1
+            (:instance lemma2
+                       (D (radix-fix D))
+                       (i (acl2::pos-fix i))))
+      :prep-lemmas
+      ((defrule pos-rationalp-expt-when-radixp
+         (implies (radixp D)
+                  (and (pos-rationalp (expt D k))
+                       (< 0 (expt D k))))
+         :rule-classes (:rewrite :type-prescription))
+       (defruled lemma1
+         (<= (MIN_VALUE f)
+             (- (tau-interval-hi (Rv v f)) (tau-interval-lo (Rv v f))))
+         :enable (width-Rv MIN_VALUE)
+         :disable (tau-interval-lo tau-interval-hi))
+       (defruled lemma2
+         (let ((n (+ 2 (e v D) (- (e (MIN_VALUE f) D)))))
+           (implies (and (radixp D)
+                         (integerp i)
+                         (>= i n))
+                    (< (expt D (- (e v D) i)) (MIN_VALUE f))))
+         :enable e
+         :use (:instance result-1-4
+                         (x (MIN_VALUE F))
+                         (y (expt D (+ (- i) (ordD D v)))))))))))
 
-              :use
-              (:instance result-1-4
-          ;               (D (radix-fix D))
-                         (x (- (tau-interval-hi (Rv v f))
-                               (tau-interval-lo (Rv v f))))
-                         (y (expt D (+ 1 (e v D) (- (acl2::pos-fix i))))))))
-
-     :prep-lemmas
-     ((defrule pos-rationalp-expt-when-radixp
-       (implies (radixp D)
-                (and (pos-rationalp (expt D k))
-                     (< 0 (expt D k))))
-       :rule-classes (:rewrite :type-prescription))
-      (defrule tau-interval-lo-Rv-type
-        (rationalp (tau-interval-lo (Rv v f)))
-        :rule-classes :type-prescription
-        :enable Rv)
-      (defrule tau-interval-hi-Rv-type
-        (rationalp (tau-interval-hi (Rv v f)))
-        :rule-classes :type-prescription
-        :enable Rv)
-      (defrule wid-Rv-type
-        (and (rationalp (- (tau-interval-hi (Rv v f))
-                           (tau-interval-lo (Rv v f))))
-             (< 0 (- (tau-interval-hi (Rv v f))
-                     (tau-interval-lo (Rv v f)))))
-        :rule-classes :type-prescription
-        :enable Rv)
-
-      )))))
-|#
-(acl2::with-arith5-help
- (define algo1-measure
-   ((i posp)
-    (v pos-rationalp)
-    (f formatp)
-    (D radixp))
-   :returns (measure natp)
-   (let* ((i (acl2::pos-fix i))
-          (v (pos-rational-fix v))
-          (f (format-fix f))
-          (D (radix-fix D))
-          (q (q v f))
-          (c (c v f))
-          (factor (if (<= 0 q) (expt 2 q) (expt (/ D 2) (- q))))
-          (n (acl2::pos-fix (ordD D (* c factor)))))
-     (if (and (evenp D)
-              (finite-positive-binary-p v f))
-         (nfix (- n i))
-       0))
-   ///
-   (fty::deffixequiv algo1-measure)
-   (defrule algo1-measure-lemma
-     (implies (and (evenp (radix-fix D))
-                   (finite-positive-binary-p
-                    (pos-rational-fix v)
-                    (format-fix f))
-                   (not (in-tau-intervalp (u_i i v d) (Rv v f))))
-              (< (algo1-measure (+ 1 (acl2::pos-fix i)) v f D)
-                 (algo1-measure i v f d)))
-     :rule-classes :linear
-     :enable has-D-length-monotone
-     :disable in-tau-intervalp
-     :use ((:instance has-D-length-when-finite-positive-binary
-                      (v (pos-rational-fix v))
-                      (f (format-fix f))
-                      (D (radix-fix D)))
-           (:instance u_i-when-has-D-length)
-           (:instance  fix-v-in-Rv)))))
-
-(define algo1-aux
-  ((i posp)
+(define algo1
+  ((from posp)
    (v pos-rationalp)
    (f formatp)
    (D radixp))
-  :guard (and (evenp D)
-              (finite-positive-binary-p v f))
-  :measure (algo1-measure i v f D)
-  (let* ((i (acl2::pos-fix i))
+  :measure (algo1-measure from v f D)
+  :returns (mv (i posp :rule-classes :type-prescription)
+               (dv pos-rationalp :rule-classes :type-prescription))
+  (let* ((i (acl2::pos-fix from))
          (v (pos-rational-fix v))
          (f (format-fix f))
          (D (radix-fix D))
          (Rv (Rv v f))
          (u (u_i i v D))
-         (w (w_i i v D)))
-    (cond ((not (mbt (and (evenp D)
-                          (finite-positive-binary-p v f))))
-           1) ; err
-          ((and (not (in-tau-intervalp u Rv))
+         (w (w_i i v D))
+         (u-last-digit (mod (s_i i v D) D)))
+    (cond ((and (not (in-tau-intervalp u Rv))
                 (not (in-tau-intervalp w Rv)))
-           (algo1-aux (1+ i) v f D))
+           (algo1 (1+ i) v f D))
           ((and (in-tau-intervalp u Rv)
                 (not (in-tau-intervalp w Rv)))
-           u)
+           (mv i u))
           ((and (not (in-tau-intervalp u Rv))
                 (in-tau-intervalp w Rv))
-           w)
-          ((< (- v u) (- w v)) u)
-          ((> (- v u) (- w v)) w)
-          ((integerp (* (f u D) (expt D i) 1/2)) u)
-          (t w))))
-
-(define algo1
-  :guard (and (evenp D)
-              (finite-positive-binary-p v f))
-  ((v pos-rationalp)
-   (f formatp)
-   (D radixp))
-  (algo1-aux 1 v f D))
+           (mv i w))
+          ((< (- v u) (- w v)) (mv i u))
+          ((> (- v u) (- w v)) (mv i w))
+          ((evenp u-last-digit) (mv i u))
+          (t (mv i w)))))
 
 (rule ; Example 1
  (let* ((f (dp))
-        (v (rne #f0.0811 (prec f)))
-        (z (algo1 v f 10)))
- (and
-  (= v #f0.081100000000000005417888360170763917267322540283203125)
-  (= z #f0.0811)))
- :enable ((dp)))
+        (v (rne #f0.0811 (prec f))))
+   (mv-let (i z) (algo1 1 v f 10)
+     (and
+      (= v #f0.081100000000000005417888360170763917267322540283203125)
+      (= i 3)
+      (= z #f0.0811))))
+   :enable ((dp)))
