@@ -3,43 +3,11 @@
 (include-book "centaur/fty/top" :dir :system)
 (include-book "rtl/rel11/support/verify-guards" :dir :system)
 
-(define radix-fix
-  ((b radixp))
-  :returns (b radixp)
-  (if (radixp b) b 2)
-  ///
-  (defrule radix-fix-when-radixp
-    (implies (radixp b)
-             (equal (radix-fix b) b)))
-  (fty::deffixtype radix
-    :pred radixp
-    :fix radix-fix
-    :equiv radix-equiv
-    :define t)
-  (in-theory (disable radix-equiv)))
-
 (fty::deffixtype real
   :pred real/rationalp
   :fix realfix
   :equiv real-equiv
   :define t)
-
-#|
-           6:x(FTY::DEFFIXTYPE REAL :PRED ...)
- v             (ENCAPSULATE NIL ...)
-                (DEFMACRO REAL-EQUIV (X Y) ...)
-                (TABLE ACL2::MACRO-ALIASES-TABLE 'REAL-EQUIV
-                       ...)
-                (TABLE UNTRANS-TABLE 'REAL-EQUIV$INLINE
-                       ...)
- V              (DEFUN REAL-EQUIV$INLINE (X Y) ...)
-                (DEFTHM REAL-EQUIV-IS-AN-EQUIVALENCE ...)
-                (DEFTHM REAL-EQUIV-IMPLIES-EQUAL-REALFIX-1 ...)
-                (DEFTHM REALFIX-UNDER-REAL-EQUIV ...)
-                (TABLE FTY::FIXTYPES 'FTY::FIXTYPE-ALIST
-                       ...)
-
-|#
 
 (define pos-rationalp
   ((x t))

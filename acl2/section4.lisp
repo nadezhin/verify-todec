@@ -7,7 +7,7 @@
 (define vl
   ((v pos-rationalp)
    (f formatp))
-  :returns (vl rationalp :rule-classes :type-prescription)
+  :returns (vl rationalp :rule-classes ())
   (let* ((q (q v f))
          (c (c v f)))
     (if (or (> c (2^{P-1} f))
@@ -27,7 +27,7 @@
     :rule-classes :definition
     :enable c-as-sigc
     :cases ((<= (Qmin f) (expq (pos-rational-fix v) (P f) 2)))
-    :hints (("subgoal 2" :in-theory (enable q-as-expq))
+    :hints (("subgoal 2" :in-theory (enable q))
             ("subgoal 1" :in-theory (enable sigc-lower-bound 2^{P-1}))))
   (acl2::with-arith5-help
    (defrule vl-linear
@@ -35,10 +35,11 @@
      :rule-classes :linear
      :enable c)))
 
-(define vr
+(acl2::with-arith5-help
+ (define vr
   ((v pos-rationalp)
    (f formatp))
-  :returns (vl rationalp :rule-classes :type-prescription)
+  :returns (vl pos-rationalp :rule-classes ())
   (let* ((q (q v f))
          (c (c v f)))
     (* (+ c 1/2) (expt 2 q)))
@@ -48,7 +49,7 @@
    (defrule vr-linear
      (> (vr v f) (pos-rational-fix v))
      :rule-classes :linear
-     :enable c)))
+     :enable c))))
 
 (define Rv
   ((v pos-rationalp)
@@ -71,6 +72,12 @@
     (rationalp (tau-interval-hi (Rv v f)))
     :rule-classes :type-prescription
     :enable tau-interval-hi)
+  (defruled in-tau-intervalp-Rv
+    (equal (in-tau-intervalp x (Rv v f))
+           (and (rationalp x)
+                (if (integerp (* 1/2 (c v f)))
+                    (and (<= (vl v f) x) (<= x (vr v f)))
+                  (and (< (vl v f) x) (< x (vr v f)))))))
   (defrule width-Rv-type
     (and (rationalp (- (tau-interval-hi (Rv v f))
                        (tau-interval-lo (Rv v f))))

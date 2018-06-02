@@ -76,23 +76,22 @@
     (<= 3 (Cmax f))
     :rule-classes :linear))
 
-(define MIN_VALUE
-  ((f formatp "Floating point format"))
-  :returns (v (and (rationalp v) (< 0 v))
-              :rule-classes :type-prescription)
-  (expt 2 (Qmin f))
-  ///
-  (fty::deffixequiv MIN_VALUE)
-  (defruled MIN_VALUE-as-spd
-    (equal (MIN_VALUE f)
-           (spd (format-fix f)))
-    :enable (Qmin P 2^{W-1}-as-bias spd)))
+(acl2::with-arith5-help
+ (define MIN_VALUE
+   ((f formatp "Floating point format"))
+   :returns (v pos-rationalp :rule-classes ())
+   (expt 2 (Qmin f))
+   ///
+   (fty::deffixequiv MIN_VALUE)
+   (defruled MIN_VALUE-as-spd
+     (equal (MIN_VALUE f)
+            (spd (format-fix f)))
+     :enable (Qmin P 2^{W-1}-as-bias spd))))
 
 (acl2::with-arith5-help
  (define MIN_NORMAL
    ((f formatp "Floating point format"))
-   :returns (v (and (rationalp v) (< 0 v))
-               :rule-classes :type-prescription
+   :returns (v pos-rationalp :rule-classes ()
                :hints (("goal" :in-theory (enable Qmin 2^{P-1}))))
    (* (2^{P-1} f) (expt 2 (Qmin f)))
    ///
@@ -110,7 +109,7 @@
 (acl2::with-arith5-help
  (define MAX_VALUE
   ((f formatp "Floating point format"))
-  :returns (v (and (rationalp v) (< 0 v)) :rule-classes :type-prescription)
+  :returns (v pos-rationalp :rule-classes ())
   (* (Cmax f) (expt 2 (Qmax f)))
   ///
   (fty::deffixequiv MAX_VALUE)
@@ -155,7 +154,8 @@
   ((x pos-rationalp)
    (f formatp))
   :returns (q integerp :rule-classes ())
-  (max (Qmin f) (- (ordD 2 x) (P f)))
+  (max (Qmin f)
+       (expq (pos-rational-fix x) (P f) 2))
   ///
   (fty::deffixequiv q)
   (defruled q-as-expe
@@ -164,11 +164,7 @@
                  (f (format-fix f)))
              (- (max (- 1 (bias f)) (expe x 2))
                 (1- (prec f)))))
-    :enable (Qmin P ordD 2^{W-1}-as-bias))
-  (defruled q-as-expq
-    (equal (q x f)
-           (max (Qmin f) (expq (pos-rational-fix x) (P f) 2)))
-    :enable (Qmin P ordD 2^{W-1}-as-bias expq))
+    :enable (Qmin P 2^{W-1}-as-bias expq))
   (defrule q-linear
     (<= (Qmin f) (q x f))
     :rule-classes :linear))
@@ -177,14 +173,14 @@
   (implies (and (drepp x f)
                 (< 0 x))
            (equal (q x f) (Qmin f)))
-  :enable (drepp q-as-expq expq expo-as-expe Qmin P 2^{W-1}-as-bias))
+  :enable (drepp q expq expo-as-expe Qmin P 2^{W-1}-as-bias))
 
 (defrule q-when-nrepp
   (implies (nrepp x f)
            (<= (q x f) (Qmax f)))
   :rule-classes :linear
   :enable (pos-rational-fix
-           nrepp q-as-expq expq expo-as-expe Qmin Qmax P 2^{W-1}-as-bias bias))
+           nrepp q expq expo-as-expe Qmin Qmax P 2^{W-1}-as-bias bias))
 
 (acl2::with-arith5-help
  (define c
@@ -200,7 +196,7 @@
              (if (<= (Qmin f) (expq x (P f) 2))
                  (sigc x (P f) 2)
                (* x (expt 2 (- (Qmin f)))))))
-    :enable (sigc q-as-expq expq sigm spd Qmin P 2^{W-1}-as-bias))))
+    :enable (sigc q expq sigm spd Qmin P 2^{W-1}-as-bias))))
 
 (acl2::with-arith5-nonlinear-help
  (defrule c-linear
@@ -294,7 +290,7 @@
 (define finite-positive-binary-p
   ((x real/rationalp "Floating point value")
    (f formatp "Floating point format"))
-  :returns (yes booleanp)
+  :returns (yes booleanp :rule-classes ())
   (and (< 0 x)
        (or (nrepp x f)
            (drepp x f)))
