@@ -192,27 +192,6 @@
                                     (d (t_i i v))))
        ("subgoal 1" :in-theory (enable has-D-length f e))))))
 
-(define choose-u_i-w_i
-  ((i posp)
-   (v pos-rationalp)
-   (f formatp))
-  :returns (dv pos-rationalp :rule-classes :type-prescription)
-  (let* ((i (acl2::pos-fix i))
-         (v (pos-rational-fix v))
-         (f (format-fix f))
-         (Rv (Rv v f))
-         (u (u_i i v))
-         (w (w_i i v))
-         (u-last-digit (digitn (f u) (- i) (D))))
-    (cond ((not (in-tau-intervalp w Rv)) u)
-          ((not (in-tau-intervalp u Rv)) w)
-          ((< (- v u) (- w v)) u)
-          ((> (- v u) (- w v)) w)
-          ((evenp u-last-digit) u)
-          (t w)))
-  ///
-  (fty::deffixequiv choose-u_i-w_i))
-
 (define algo1-measure
   ((i posp)
    (v pos-rationalp)
@@ -253,27 +232,77 @@
                         (x (MIN_VALUE F))
                         (y (expt (D) (+ (- i) (ordD v))))))))))
 
-(define algo1
+(define algo1-i
   ((i posp)
    (v pos-rationalp)
    (f formatp))
   :measure (algo1-measure i v f)
-  :returns (mv (i posp :rule-classes :type-prescription)
-               (dv pos-rationalp :rule-classes :type-prescription))
+  :returns (i posp :rule-classes ())
   (let ((i (acl2::pos-fix i)))
-    (if (or (in-tau-intervalp (u_i i v) (Rv v f))
-            (in-tau-intervalp (w_i i v) (Rv v f)))
-        (mv i (choose-u_i-w_i i v f))
-      (algo1 (1+ (acl2::pos-fix i)) v f)))
+    (if (and (not (in-tau-intervalp (u_i i v) (Rv v f)))
+             (not (in-tau-intervalp (w_i i v) (Rv v f))))
+        (algo1-i (+ i 1) v f)
+      i))
   ///
-  (fty::deffixequiv algo1))
+  (fty::deffixequiv algo1-i)
+  (defrule algo1-i-linear
+    (>= (algo1-i i v f) (acl2::pos-fix i))
+    :rule-classes :linear)
+  (defruled in-tau-intervalp-algo1-i
+    (let ((i (algo1-i i v f)))
+      (and (implies (not (in-tau-intervalp (u_i i v) (Rv v f)))
+                    (in-tau-intervalp (w_i i v) (Rv v f)))
+           (implies (not (in-tau-intervalp (w_i i v) (Rv v f)))
+                    (in-tau-intervalp (u_i i v) (Rv v f))))))
+  (defruled in-tau-intervalp-i<=j<<algo1-i
+    (implies (and (<= (acl2::pos-fix i) (acl2::pos-fix j))
+                  (< (acl2::pos-fix j) (algo1-i i v f)))
+             (and (not (in-tau-intervalp (u_i j v) (Rv v f)))
+                  (not (in-tau-intervalp (w_i j v) (Rv v f)))))
+    :induct (algo1-i i v f)
+    :disable acl2::pos-equiv
+    :hints (("subgoal *1/1" :use (:instance acl2::pos-equiv$inline
+                                            (x j)
+                                            (y i))))))
+
+(define algo1
+  ((i posp)
+   (v pos-rationalp)
+   (f formatp))
+  :returns (dv pos-rationalp :rule-classes ())
+  (let* ((i (algo1-i i v f))
+         (v (pos-rational-fix v))
+         (f (format-fix f))
+         (Rv (Rv v f))
+         (u (u_i i v))
+         (w (w_i i v))
+         (u-last-digit (digitn (f u) (- i) (D))))
+    (cond ((and (in-tau-intervalp u Rv) (not (in-tau-intervalp w Rv))) u)
+          ((and (not (in-tau-intervalp u Rv)) (in-tau-intervalp w Rv)) w)
+          ((< (abs (- v u)) (abs (- w v))) u)
+          ((> (abs (- v u)) (abs (- w v))) w)
+          ((evenp u-last-digit) u)
+          (t w)))
+  ///
+  (fty::deffixequiv algo1)
+  (defruled algo1-is-u_i-or-w_i
+    (let* ((dv (algo1 i v f))
+           (i (algo1-i i v f))
+           (u (u_i i v))
+           (w (w_i i v)))
+      (and (implies (not (= dv u)) (equal dv w))
+           (implies (not (= dv w)) (equal dv u)))))
+  (defrule in-tau-intervalp-algo1
+    (in-tau-intervalp (algo1 i v f) (Rv v f))
+    :enable in-tau-intervalp-algo1-i)
+  (defrule has-D-length-algo1
+    (has-D-length  (algo1 from v f) (algo1-i from v f))))
 
 (rule ; Example 1
  (let* ((f (dp))
         (v (rne #f0.0811 (prec f))))
-   (mv-let (i z) (algo1 1 v f)
-     (and
-      (= v #f0.081100000000000005417888360170763917267322540283203125)
-      (= i 3)
-      (= z #f0.0811))))
-   :enable ((dp)))
+   (and
+    (= v #f0.081100000000000005417888360170763917267322540283203125)
+    (= (algo1-i 1 v f) 3)
+    (= (algo1 1 v f) #f0.0811)))
+ :enable ((dp)))
