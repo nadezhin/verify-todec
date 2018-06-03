@@ -1,9 +1,7 @@
 (in-package "RTL")
 (include-book "section2")
 
-(local (include-book "rtl/rel11/support/bits" :dir :system))
 (local (include-book "rtl/rel11/support/float" :dir :system))
-(local (include-book "rtl/rel11/support/reps" :dir :system))
 (local (include-book "reps-lemmas"))
 (local (acl2::allow-arith5-help))
 

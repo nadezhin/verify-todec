@@ -1,13 +1,8 @@
-#|
-(include-book "rtl/rel11/portcullis" :dir :system)
-|#
 (in-package "RTL")
 (include-book "section6")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
 (local (include-book "rtl/rel11/support/bits" :dir :system))
-(local (include-book "rtl/rel11/support/float" :dir :system))
-(local (include-book "rtl/rel11/support/reps" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (defruled ordD-between-u_i-w_i

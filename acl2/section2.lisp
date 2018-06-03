@@ -1,7 +1,6 @@
 (in-package "RTL")
 (include-book "fty-lemmas")
 
-(local (include-book "rtl/rel11/support/basic" :dir :system))
 (local (include-book "rtl/rel11/support/float" :dir :system))
 (local (acl2::allow-arith5-help))
 

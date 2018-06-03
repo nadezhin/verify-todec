@@ -2,8 +2,6 @@
 (include-book "section5")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
-(local (include-book "rtl/rel11/support/float" :dir :system))
-(local (include-book "rtl/rel11/support/reps" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (acl2::with-arith5-help
