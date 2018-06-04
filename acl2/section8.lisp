@@ -44,10 +44,10 @@
       (= (H (ep)) 21))
  :enable (hp sp dp ep))
 
-; First part of result-3 is not true for *format-for-result-3*
-; For all finite-positive-binary v of this format algo1 returns
-; decimal of length H-1 which is rounded back to v
-
+; Matula proved result-3 for infinite exponent range.
+; For finite exponent range the second part of result 3 is also true,
+; but the first part may be false for some format.
+; We give an example of such format.
 (defconst *format-for-result-3* '(nil 4 2))
 
 (rule
@@ -57,6 +57,10 @@
       (= (H *format-for-result-3*) 3)
       (= (Qmin *format-for-result-3*) -3)
       (= (Qmax *format-for-result-3*) -2)))
+
+; For all finite-positive-binary v of format *format-for-result-3* algo1 returns
+; decimal of length H-1 which is rounded back to v.
+; It is proved by enumeration of all members of the format.
 
 (defrule result-3-incorrect-for-artificalformat
  (let* ((f *format-for-result-3*)
@@ -98,8 +102,12 @@
     (= (c v *format-for-result-3*) 14)
     (= (c v *format-for-result-3*) 15)))))
 
+; We show that the the first part of result-3 is true
+; for some partucular formats including double-precision format.
+; For each format we give a some positive finite member v of a format,
+; such that each decimal in Rv has length >= H.
+; Below is a form we used to search for such v.
 #|
-; Engine to search v for first part of result-3
 (let* ((f (ep))
        (i0 (- (H f) 1))
        (q (+ 3 (- 1 (P f))))
@@ -190,7 +198,7 @@
                   (v #fx1.fffffffffffffff8p3)
                   (j i))
   :enable (ep))
-#|
+
 ; Second part of result 3
 (defrule result-3
   (implies (and (integerp i)
@@ -199,20 +207,73 @@
            (let ((dv (algo1 i v f)))
              (and (has-D-length dv i)
                   (in-tau-intervalp dv (Rv v f)))))
+  :enable algo1-is-u_i-or-w_i
+  :cases ((= (algo1 i v f) (u_i i v))
+          (= (algo1 i v f) (w_i i v)))
   :prep-lemmas
-  ((acl2::with-arith5-help
+  ((acl2::with-arith5-nonlinear++-help
+    (defrule lemma0
+     (implies (and (integerp i)
+                   (>= i (H f)))
+              (< (expt (D) (+ (- i) (e v))) (wid-Rv v f)))
+     :cases ((not (< (expt (D) (+ (- i) (e v)))
+                     (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))))
+             (not (<= (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))
+                      (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))))
+             (not (<= (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))
+                      (wid-Rv v f))))
+     :hints (("subgoal 3" :use (:instance H-def (n i)))
+             ("subgoal 2" :in-theory (enable e)
+              :use (:instance result-1-3
+                      (x (pos-rational-fix v))
+                      (k (ordD v))))
+             ("subgoal 1" :in-theory (enable wid-Rv-as-c-q c)
+              :use (:instance c-linear (x v))))))
+   (acl2::with-arith5-help
     (defrule lemma
      (implies (and (integerp i)
                    (>= i (H f)))
               (equal (algo1-i i v f) i))
-;     :enable w_i-as-u_i
-     :enable (u_i-linear w_i-linear width-Rv w_i-as-u_i)
-     :use ((:instance H-def (n i))
-           (:instance u-or-w-in-Rv
-                      (u (u_i i v))
-                      (w (w_i i v))))
-     :expand (algo1-i i v f)
-     )
-   ))
-  )
+     :enable (u_i-linear w_i-linear algo1-i
+                         w_i-as-u_i)
+     :use (:instance u-or-w-in-Rv
+                     (u (u_i i v))
+                     (w (w_i i v)))))))
+
+#|
+(define G
+  ((f formatp))
+  :returns (H natp :rule-classes :type-prescription
+              :hints (("goal" :use (:instance expe>=
+                                              (b (D))
+                                              (x (* 2 (2^{P-1} f)))
+                                              (n 0)))))
+  (let ((ordD (ordD (2^{P-1} f))))
+    (if (= (w^{P-1} f) (expt (D) ordD)) (- ordD
+  (+ (expe (* 2 (2^{P-1} f)) (D)) 2)
+  ///
+  (fty::deffixequiv H)
+  (acl2::with-arith5-help
+   (defrule H-def
+     (implies (integerp n)
+              (equal (> (expt (D) (- n 1)) (* 2 (2^{P-1} f)))
+                     (>= n (H f))))
+     :rule-classes ()
+     :cases ((>= n (H f))
+             (<= n (1- (H f))))
+     :hints (("subgoal 2" :use (:instance expe>=
+                                          (b (D))
+                                          (n (1- n))
+                                          (x (* 2 (2^{P-1} f)))))
+             ("subgoal 1" :use (:instance expe<=
+                                          (b (D))
+                                          (n (- n 2))
+                                          (x (* 2 (2^{P-1} f)))))))))
+
+(rule
+ (and (= (H (hp)) 5)
+      (= (H (sp)) 9)
+      (= (H (dp)) 17)
+      (= (H (ep)) 21))
+ :enable (hp sp dp ep))
 |#

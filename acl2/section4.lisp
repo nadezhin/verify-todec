@@ -77,23 +77,30 @@
            (and (rationalp x)
                 (if (integerp (* 1/2 (c v f)))
                     (and (<= (vl v f) x) (<= x (vr v f)))
-                  (and (< (vl v f) x) (< x (vr v f)))))))
-  (defrule width-Rv-type
-    (and (rationalp (- (tau-interval-hi (Rv v f))
-                       (tau-interval-lo (Rv v f))))
-         (< 0 (- (tau-interval-hi (Rv v f))
-                 (tau-interval-lo (Rv v f)))))
-    :rule-classes :type-prescription
-    :enable (tau-interval-lo tau-interval-hi))
-  (acl2::with-arith5-help
-   (defruled width-Rv
-     (let ((q (q v f))
-           (c (c v f))
-           (Rv (Rv v f)))
-       (equal (- (tau-interval-hi Rv) (tau-interval-lo Rv))
-              (* (if (or (not (= c (2^{P-1} f))) (= q (Qmin f))) 1 3/4)
-                 (expt 2 q))))
-    :enable (vl-alt vr))))
+                  (and (< (vl v f) x) (< x (vr v f))))))))
+
+(define wid-Rv
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (wid pos-rationalp :rule-classes :type-prescription
+                :hints (("goal" :in-theory (enable Rv pos-rationalp))))
+  (- (tau-interval-hi (Rv v f)) (tau-interval-lo (Rv v f)))
+  :guard-hints (("goal" :in-theory (enable Rv)))
+  ///
+  (fty::deffixequiv wid-Rv)
+  (defruled wid-Rv-as-c-q
+    (let ((q (q v f))
+          (c (c v f)))
+      (equal (wid-Rv v f)
+             (* (if (or (not (= c (2^{P-1} f))) (= q (Qmin f))) 1 3/4)
+                (expt 2 q))))
+    :enable (Rv vl-alt vr)))
+
+(acl2::with-arith5-help
+ (defruled wid-Rv>=MIN_VALUE
+   (<= (MIN_VALUE f) (wid-Rv v f))
+   :rule-classes :linear
+   :enable (wid-Rv-as-c-q MIN_VALUE)))
 
 (defrule v-in-Rv
   (implies (pos-rationalp v)
@@ -101,17 +108,15 @@
   :use fix-v-in-Rv)
 
 (defrule u-or-w-in-Rv
-   (let* ((Rv (Rv v f))
-         (wid (- (tau-interval-hi Rv) (tau-interval-lo Rv)))
-         (v (pos-rational-fix v)))
+   (let ((v (pos-rational-fix v)))
      (implies (and (<= u v)
                    (< v w)
-                   (< (- w u) wid)
+                   (< (- w u) (wid-Rv v f))
                    (rationalp u)
                    (rationalp w))
               (or (in-tau-intervalp u (Rv v f))
                   (in-tau-intervalp w (Rv v f)))))
    :rule-classes ()
-   :enable Rv)
+   :enable (wid-Rv Rv))
 
 (in-theory (disable tau-intervalp in-tau-intervalp tau-interval-lo tau-interval-hi))

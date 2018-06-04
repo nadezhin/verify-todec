@@ -207,20 +207,14 @@
               (< (algo1-measure (+ 1 (acl2::pos-fix i)) v f)
                  (algo1-measure i v f)))
      :rule-classes :linear
-     :enable (w_i-as-u_i)
+     :enable (w_i-as-u_i wid-Rv>=MIN_VALUE)
      :use ((:instance u-or-w-in-Rv
                       (u (u_i i v))
                       (w (w_i i v)))
            u_i-linear
-           lemma1
-           (:instance lemma2 (i (acl2::pos-fix i))))
+           (:instance lemma (i (acl2::pos-fix i))))
      :prep-lemmas
-     ((defruled lemma1
-        (<= (MIN_VALUE f)
-            (- (tau-interval-hi (Rv v f)) (tau-interval-lo (Rv v f))))
-        :enable (width-Rv MIN_VALUE)
-        :disable (tau-interval-lo tau-interval-hi))
-      (defruled lemma2
+     ((defruled lemma
         (let ((n (+ 2 (e v) (- (e (MIN_VALUE f))))))
           (implies (and (integerp i)
                         (>= i n))
