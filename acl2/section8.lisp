@@ -241,14 +241,36 @@
                   (j i))
         algo1-i<=max-from-i-H))
 
-(define G
+(acl2::with-arith5-help
+ (define Gp
+  ((p integerp))
+  :returns (gp integerp :rule-classes ())
+  (let* ((2^{p-1} (expt 2 (- (ifix p) 1)))
+         (ordD (ordD 2^{p-1})))
+    (if (= 2^{p-1} (expt (D) (- ordD 1))) (- ordD 2) (- ordD 1)))
+  ///
+  (fty::deffixequiv Gp)
+  (acl2::with-arith5-help
+   (defrule Gp-def
+     (implies (integerp n)
+              (equal (> (expt 2 (- (ifix p) 1)) (expt (D) n))
+                     (<= n (Gp p))))
+     :rule-classes ()
+     :enable D
+     :cases ((<= n (Gp p))
+             (>= n (1+ (Gp p))))
+     :use (:instance result-1-3
+                     (x (expt 2 (- (ifix p) 1)))
+                     (k (ordD (expt 2 (- (ifix p) 1)))))))))
+
+(acl2::with-arith5-help
+ (define G
   ((f formatp))
   :returns (G natp :rule-classes :type-prescription
-              :hints (("goal" :use (:instance result-1-4
-                                              (x 1)
-                                              (y (2^{P-1} f))))))
-  (let ((ordD (ordD (2^{P-1} f))))
-    (if (= (2^{P-1} f) (expt (D) (- ordD 1))) (- ordD 2) (- ordD 1)))
+              :hints (("goal" :use (:instance Gp-def
+                                              (n 0)
+                                              (p (P f))))))
+  (Gp (P f))
   ///
   (fty::deffixequiv G)
   (acl2::with-arith5-nonlinear-help
@@ -257,11 +279,8 @@
               (equal (> (2^{P-1} f) (expt (D) n))
                      (<= n (G f))))
      :rule-classes ()
-     :cases ((<= n (G f))
-             (>= n (1+ (G f))))
-     :use (:instance result-1-3
-                     (x (2^{P-1} f))
-                     (k (ordD (2^{P-1} f)))))))
+     :enable 2^{P-1}
+     :use (:instance Gp-def (p (P f)))))))
 
 (rule
  (and (= (G (hp)) 3)
@@ -279,65 +298,55 @@
   :enable c
   :use (:instance c-vs-MIN_NORMAL (x v))))
 
-(acl2::with-arith5-help
+(acl2::with-arith5-nonlinear++-help
+ (defruled ulps-when-c>=2^{p-1}
+  (implies (and (>= (c v f) (expt 2 (- (ifix p) 1)))
+                (integerp i)
+                (<= i (Gp p)))
+           (< (expt 2 (q v f))
+              (expt (D) (- (e v) i))))
+  :enable (e c)
+  :use ((:instance Gp-def
+                   (n i))
+        (:instance result-1-3
+                   (x v)
+                   (k (ordD v))))))
+#|
+(acl2::with-arith5-nonlinear++-help
  (defruled ulps-when-i<=G-and-normal
    (implies (and (posp i)
                  (<= i (G f))
                  (<= (MIN_NORMAL f) (pos-rational-fix v)))
             (< (expt 2 (q v f))
                (expt (D) (- (e v) i))))
-   :cases ((not (<= (expt 2 (q v f))
-                    (/ (pos-rational-fix v) (2^{P-1} f))))
-           (not (<  (/ (pos-rational-fix v) (2^{P-1} f))
-                    (/ (expt (D) (e v)) (2^{P-1} f))))
-           (not (<  (/ (expt (D) (e v)) (2^{P-1} f))
-                    (expt (D) (- (e v) i)))))
-   :hints
-   (("subgoal 3" :use (:instance MIN_NORMAL-lemma
-                                 (v (pos-rational-fix v))))
-    ("subgoal 2" :in-theory (enable e)
-     :use (:instance result-1-3
-                     (x v)
-                     (k (ordD v))))
-    ("subgoal 1" :use (:instance G-def
-                                 (n (acl2::pos-fix i)))))))
-
-
-(defruled at-most-one-above-when-i<=G-and-normal
+   :enable (c 2^{P-1} G)
+   :use ((:instance ulps-when-c>=2^p
+                    (p (P f)))
+         (:instance MIN_NORMAL-lemma
+                    (v (pos-rational-fix v))))))
+|#
+(acl2::with-arith5-nonlinear-help
+ (defruled at-most-one-above-when-c>=2^{p-1}
   (implies (and (< (w_i i v) d)
-                (<= (acl2::pos-fix i) (G f))
-                (<= (MIN_NORMAL f) (pos-rational-fix v))
+                (>= (c v f) (expt 2 (- (ifix p) 1)))
+                (<= (acl2::pos-fix i) (Gp p))
                 (pos-rationalp d)
                 (has-D-length d i))
            (not (in-tau-intervalp d (Rv v f))))
-  :enable (in-tau-intervalp-Rv w_i-linear)
+  :enable (in-tau-intervalp-Rv w_i-linear e)
   :use ((:instance lemma
                    (i (acl2::pos-fix i))
                    (w (w_i i v)))
-        lemma1)
+        (:instance ulps-when-c>=2^{p-1}
+                   (i (acl2::pos-fix i)))
+        (:instance result-1-4
+                   (x v)
+                   (y (w_i i v))))
   :prep-lemmas
-  ((acl2::with-arith5-help
-    (defruled lemma0
-      (equal (* (c v f) (expt 2 (q v f)))
-             (pos-rational-fix v))
-      :enable c))
-   (acl2::with-arith5-help
-    (defrule vr-alt
-      (equal (vr v f)
-             (+ (pos-rational-fix v) (* (expt 2 (- (q v f) 1)))))
-      :enable (vr c)))
-   (acl2::with-arith5-nonlinear-help
-    (defruled lemma1
-      (implies (and (<= (acl2::pos-fix i) (G f))
-                    (<= (MIN_NORMAL f) (pos-rational-fix v)))
-               (< (expt 2 (- (q v f) 1))
-                  (expt (D) (+ (- (acl2::pos-fix i)) (e (w_i i v))))))
-      :enable (e w_i-linear)
-      :use ((:instance ulps-when-i<=G-and-normal
-                       (i (acl2::pos-fix i)))
-            (:instance result-1-4
-                       (x v)
-                       (y (w_i i v))))))
+  ((defrule vr-alt
+     (equal (vr v f)
+            (+ (pos-rational-fix v) (* 1/2 (expt 2 (q v f)))))
+     :enable (vr c))
    (defruled lemma
      (implies (and (pos-rationalp w)
                    (pos-rationalp d)
@@ -351,12 +360,27 @@
                      (b (D))
                      (p i)
                      (x w)
-                     (y d)))))
-
-(defruled at-most-one-below-when-i<=G-and-normal
-  (implies (and (< D (u_i i v))
+                     (y d))))))
+#|
+(acl2::with-arith5-nonlinear++-help
+ (defruled at-most-one-above-when-i<=G-and-normal
+  (implies (and (< (w_i i v) d)
                 (<= (acl2::pos-fix i) (G f))
                 (<= (MIN_NORMAL f) (pos-rational-fix v))
+                (pos-rationalp d)
+                (has-D-length d i))
+           (not (in-tau-intervalp d (Rv v f))))
+   :enable (c 2^{P-1} G)
+   :use ((:instance at-most-one-above-when-c>=2^{p-1}
+                    (p (P f)))
+         (:instance MIN_NORMAL-lemma
+                    (v (pos-rational-fix v))))))
+|#
+(acl2::with-arith5-nonlinear-help
+ (defruled at-most-one-below-when-c>=2^{p-1}
+  (implies (and (< D (u_i i v))
+                (>= (c v f) (expt 2 (- (ifix p) 1)))
+                (<= (acl2::pos-fix i) (Gp p))
                 (pos-rationalp d)
                 (has-D-length d i))
            (not (in-tau-intervalp d (Rv v f))))
@@ -367,12 +391,13 @@
                    (u (u_i i v)))
         vl-alt-2)
   :hints (("subgoal 2" :use lemma2)
-          ("subgoal 1" :use lemma1))
+          ("subgoal 1" :use (:instance lemma1
+                                       (p (ifix p)))))
   :prep-lemmas
   ((acl2::with-arith5-help
-    (defrule vl-alt-2
+    (defruled vl-alt-2
       (>= (vl v f)
-          (- (pos-rational-fix v) (* (expt 2 (- (q v f) 1)))))
+          (- (pos-rational-fix v) (* 1/2 (expt 2 (q v f)))))
       :enable (vl c)))
    (acl2::with-arith5-help
     (defruled lemma0
@@ -380,39 +405,39 @@
       :cases ((<= (w_i i v) (* 2 (u_i i v))))
       :hints (("subgoal 2" :in-theory (enable u_i w_i t_i))
               ("subgoal 1" :in-theory (enable w_i-linear)))))
-   (acl2::with-arith5-help
+   (acl2::with-arith5-nonlinear++-help
     (defruled lemma1
-      (implies (and (<= (acl2::pos-fix i) (G f))
-                    (<= (MIN_NORMAL f) (pos-rational-fix v))
+      (implies (and (>= (c v f) (expt 2 (- (ifix p) 1)))
+                    (<= (acl2::pos-fix i) (Gp p))
+                    (integerp p)
                     (= (u_i i v) (expt (D) (1- (e (u_i i v))))))
                (< (expt 2 (- (q v f) 1))
                   (expt (D) (+ -1 (- (acl2::pos-fix i)) (e (u_i i v))))))
       :cases ((not (<= (expt 2 (- (q v f) 1))
-                       (/ (pos-rational-fix v) (* 2 (2^{P-1} f)))))
-              (not (<  (/ (pos-rational-fix v) (* 2 (2^{P-1} f)))
-                       (/ (pos-rational-fix (u_i i v)) (2^{P-1} f))))
-              (not (=  (/ (pos-rational-fix (u_i i v)) (2^{P-1} f))
-                       (/ (expt (D) (1- (e v))) (2^{P-1} f))))
-              (not (<  (/ (expt (D) (1- (e v))) (2^{P-1} f))
+                       (* (pos-rational-fix v) (expt 2 (- p)))))
+              (not (<  (* (pos-rational-fix v) (expt 2 (- p)))
+                       (* (pos-rational-fix (u_i i v)) (expt 2 (- 1 p)))))
+              (not (=  (* (pos-rational-fix (u_i i v)) (expt 2 (- 1 p)))
+                       (* (expt (D) (1- (e v))) (expt 2 (- 1 p)))))
+              (not (<  (* (expt (D) (1- (e v))) (expt 2 (- 1 p)))
                        (expt (D) (+ -1 (- (acl2::pos-fix i)) (e v)))))
               (not (=  (expt (D) (+ -1 (- (acl2::pos-fix i)) (e v)))
                        (expt (D) (+ -1 (- (acl2::pos-fix i)) (e (u_i i v)))))))
       :hints
-      (("subgoal 5" :use (:instance MIN_NORMAL-lemma
-                                    (v (pos-rational-fix v))))
-       ("subgoal 4" :in-theory (enable lemma0))
+      (("subgoal 5" :in-theory (enable c))
+       ("subgoal 4" :use (:instance lemma0))
        ("subgoal 3" :in-theory (enable e))
-       ("subgoal 2" :use (:instance G-def
+       ("subgoal 2" :use (:instance Gp-def
                                     (n (acl2::pos-fix i))))
        ("subgoal 1" :in-theory (enable e)))))
    (acl2::with-arith5-nonlinear-help
     (defruled lemma2
-      (implies (and (<= (acl2::pos-fix i) (G f))
-                    (<= (MIN_NORMAL f) (pos-rational-fix v)))
-               (< (expt 2 (- (q v f) 1))
+      (implies (and (>= (c v f) (expt 2 (- (ifix p) 1)))
+                    (<= (acl2::pos-fix i) (Gp p)))
+               (< (* 1/2 (expt 2 (q v f)))
                   (expt (D) (+ (- (acl2::pos-fix i)) (e (u_i i v))))))
       :enable (e u_i-linear)
-      :use ((:instance ulps-when-i<=G-and-normal
+      :use ((:instance ulps-when-c>=2^{p-1}
                        (i (acl2::pos-fix i))))))
    (defruled lemma
      (implies (and (pos-rationalp u)
@@ -430,9 +455,39 @@
                      (b (D))
                      (p i)
                      (x u)
-                     (y d)))))
-
-(defrule may-contain-only-u_i-or-W-i-when-i<=G-and-normal
+                     (y d))))))
+#|
+(acl2::with-arith5-nonlinear++-help
+ (defruled at-most-one-below-when-i<=G-and-normal
+   (implies (and (< D (u_i i v))
+                 (<= (acl2::pos-fix i) (G f))
+                 (<= (MIN_NORMAL f) (pos-rational-fix v))
+                 (pos-rationalp d)
+                 (has-D-length d i))
+            (not (in-tau-intervalp d (Rv v f))))
+   :enable (c 2^{P-1} G)
+   :use ((:instance at-most-one-below-when-c>=2^{p-1}
+                    (p (P f)))
+         (:instance MIN_NORMAL-lemma
+                    (v (pos-rational-fix v))))))
+|#
+(defrule may-contain-only-u_i-or-W-i-when-c>=2^{p-1}
+  (implies (and (>= (c v f) (expt 2 (- (ifix p) 1)))
+                (<= (acl2::pos-fix i) (Gp p))
+                (pos-rationalp d)
+                (has-D-length d i)
+                (in-tau-intervalp d (Rv v f)))
+           (or (equal d (u_i i v))
+               (equal d (w_i i v))))
+  :rule-classes ()
+  :enable (u_i-linear w_i-linear)
+  :hints (("subgoal 2" :use at-most-one-below-when-c>=2^{p-1})
+          ("subgoal 1" :use at-most-one-above-when-c>=2^{p-1}))
+  :use uninteresting-other-than-u_i-w_i
+  :cases ((< d (u_i i v)) (> d (w_i i v))))
+#|
+(acl2::with-arith5-nonlinear++-help
+ (defrule may-contain-only-u_i-or-W-i-when-i<=G-and-normal
  (implies (and (<= (acl2::pos-fix i) (G f))
                (<= (MIN_NORMAL f) (pos-rational-fix v))
                (pos-rationalp d)
@@ -440,17 +495,38 @@
                (in-tau-intervalp d (Rv v f)))
           (or (equal d (u_i i v))
               (equal d (w_i i v))))
- :rule-classes ()
- :enable (at-most-one-below-when-i<=G-and-normal
-          at-most-one-above-when-i<=G-and-normal
-          u_i-linear w_i-linear)
- :use uninteresting-other-than-u_i-w_i
- :cases ((< d (u_i i v)) (> d (w_i i v))))
-
+ :enable (c 2^{P-1} G)
+ :use ((:instance may-contain-only-u_i-or-W-i-when-c>=2^{p-1}
+                  (p (P f)))
+       (:instance MIN_NORMAL-lemma
+                  (v (pos-rational-fix v))))))
+|#
+(defrule result-4-part-1-when-c>=2^{p-1}
+   (implies (and (posp i)
+                 (>= (c v f) (expt 2 (- (ifix p) 1)))
+                 (<= i (Gp p))
+                 (pos-rationalp v)
+                 (pos-rationalp d1)
+                 (has-D-length d1 i)
+                 (in-tau-intervalp d1 (Rv v f))
+                 (pos-rationalp d2)
+                 (has-D-length d2 i)
+                 (not (= d1 d2)))
+            (not (in-tau-intervalp d2 (Rv v f))))
+   :enable (wid-Rv-as-c-q w_i-as-u_i)
+   :use ((:instance may-contain-only-u_i-or-W-i-when-c>=2^{p-1}
+                    (d d1))
+         (:instance may-contain-only-u_i-or-W-i-when-c>=2^{p-1}
+                    (d d2))
+         (:instance ulps-when-c>=2^{p-1})
+         (:instance at-most-one-in-Rv
+                    (u (u_i i v))
+                    (w (w_i i v)))))
 
 ; First part of result 4
 ; Hypotheis v >= MIN_NORMAL is weaker than in the paper
-(defrule result-4-part-1
+(acl2::with-arith5-nonlinear++-help
+ (defrule result-4-part-1
    (implies (and (posp i)
                  (<= i (G f))
                  (pos-rationalp v)
@@ -462,15 +538,10 @@
                  (has-D-length d2 i)
                  (not (= d1 d2)))
             (not (in-tau-intervalp d2 (Rv v f))))
-   :enable (wid-Rv-as-c-q w_i-as-u_i)
-   :use ((:instance may-contain-only-u_i-or-W-i-when-i<=G-and-normal
-                    (d d1))
-         (:instance may-contain-only-u_i-or-W-i-when-i<=G-and-normal
-                    (d d2))
-         (:instance at-most-one-in-Rv
-                    (u (u_i i v))
-                    (w (w_i i v)))
-         (:instance ulps-when-i<=G-and-normal)))
+   :enable (c 2^{P-1} G)
+   :use ((:instance result-4-part-1-when-c>=2^{p-1}
+                    (p (P f)))
+         MIN_NORMAL-lemma)))
 
 ; Counterexample for second part of result 4
 ; No decimals of length G+1 in the rounding interval of this v
