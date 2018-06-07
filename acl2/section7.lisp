@@ -57,34 +57,34 @@
                                    Rv u_i-linear w_i-linear))
    ("subgoal 1" :use (:instance not-has-D-length-between-u_i-w_i (x d)))))
 
-(defruled i<=max-from-j-algo1
+(defruled algo1-i<=max-from-i-j
   (implies (and (in-tau-intervalp (pos-rational-fix d) (Rv v f))
                 (has-D-length d j))
-           (<= (algo1-i from v f) (max (acl2::pos-fix from)
-                                       (acl2::pos-fix j))))
+           (<= (algo1-i from-i v f) (max (acl2::pos-fix from-i)
+                                         (acl2::pos-fix j))))
  :enable (in-tau-intervalp-i<=j<<algo1-i
           algo1-i has-D-length-monotone)
  :use (:instance uninteresting-other-than-u_i-w_i
                  (d (pos-rational-fix d))
-                 (i (max (acl2::pos-fix from) (acl2::pos-fix j)))))
+                 (i (max (acl2::pos-fix from-i) (acl2::pos-fix j)))))
 
 (defruled has-minimal-D-length-algo1
   (implies (and (in-tau-intervalp d (Rv v f))
                 (pos-rationalp d)
-                (posp from)
+                (posp from-i)
                 (integerp j)
-                (<= from j)
-                (< j (algo1-i from v f)))
+                (<= from-i j)
+                (< j (algo1-i from-i v f)))
            (not (has-D-length d j)))
-  :use i<=max-from-j-algo1)
+  :use algo1-i<=max-from-i-j)
 
 (acl2::with-arith5-help
  (defrule evenp-digitn-f-w_i
-   (implies (and (integerp from)
-                 (<= 2 from))
-            (equal (evenp (digitn (f (w_i from v)) (- from) (D)))
-                   (not (evenp (digitn (f (u_i from v)) (- from) (D))))))
-   :cases ((= (t_i from v) (expt (D) from)))
+   (implies (and (integerp i)
+                 (<= 2 i))
+            (equal (evenp (digitn (f (w_i i v)) (- i) (D)))
+                   (not (evenp (digitn (f (u_i i v)) (- i) (D))))))
+   :cases ((= (t_i i v) (expt (D) i)))
    :enable (f e u_i w_i result-1-5 digitn-def ordD-t_i)
    :disable evenp
    :prep-lemmas
@@ -93,18 +93,32 @@
              (not (evenp (mod (t_i i v) (D)))))
       :enable t_i))))
 
+; Previos theorem would be incorrect for i=1
+(rule
+ (let ((i 1)
+       (v #f9.5))
+   (and (= (u_i i v) 9)
+        (= (w_i i v) 10)
+        (= (f (u_i i v)) #f0.9)
+        (= (f (w_i i v)) #f0.1)
+        (= (digitn (f (u_i i v)) (- i) (D)) 9)
+        (= (digitn (f (w_i i v)) (- i) (D)) 1)
+        (not (evenp (digitn (f (u_i i v)) (- i) (D))))
+        (not (evenp (digitn (f (w_i i v)) (- i) (D))))))
+ :enable D)
+
 (defruled algo1-satisfies-specs
-   (let ((dv (algo1 from v f))
-         (i (algo1-i from v f)))
+   (let ((dv (algo1 from-i v f))
+         (i (algo1-i from-i v f)))
      (implies (and (in-tau-intervalp d (Rv v f))
                    (has-D-length d j)
                    (pos-rationalp d)
                    (pos-rationalp v)
                    (not (= d dv))
-                   (integerp from)
-                   (<= 2 from)
+                   (integerp from-i)
+                   (<= 2 from-i)
                    (integerp j)
-                   (<= from j))
+                   (<= from-i j))
               (or (< i j)
                   (and (= i j)
                        (< (abs (- dv v)) (abs (- d v))))
@@ -116,7 +130,7 @@
    :disable (evenp abs)
    :use (:instance uninteresting-other-than-u_i-w_i
                    (i j))
-   :cases ((= j (algo1-i from v f)))
+   :cases ((= j (algo1-i from-i v f)))
    :hints (("subgoal 2" :use (:instance in-tau-intervalp-i<=j<<algo1-i
-                                        (i from)))
+                                        (i from-i)))
            ("subgoal 1" :in-theory (enable algo1 abs))))

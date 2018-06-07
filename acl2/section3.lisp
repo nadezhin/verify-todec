@@ -207,6 +207,17 @@
                   (x (pos-rational-fix x))
                   (n (- 2 (2^{W-1} f))))))
 
+(acl2::with-arith5-nonlinear-help
+ (defruled c-vs-MIN_NORMAL
+  (equal (<= (2^{P-1} f) (c x f))
+         (<= (MIN_NORMAL f) (pos-rational-fix x)))
+  :enable (c-as-sigc sigc-lower-bound MIN_NORMAL 2^{P-1})
+  :use (:instance expq<=
+                  (b 2)
+                  (x (pos-rational-fix x))
+                  (p (P f))
+                  (n (1- (Qmin f))))))
+
 (acl2::with-arith5-help
  (defrule c-type-when-drepp
    (implies (drepp x f)

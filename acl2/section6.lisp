@@ -258,11 +258,11 @@
                                             (y i))))))
 
 (define algo1
-  ((i posp)
+  ((from-i posp)
    (v pos-rationalp)
    (f formatp))
   :returns (dv pos-rationalp :rule-classes ())
-  (let* ((i (algo1-i i v f))
+  (let* ((i (algo1-i from-i v f))
          (v (pos-rational-fix v))
          (f (format-fix f))
          (Rv (Rv v f))
@@ -278,23 +278,24 @@
   ///
   (fty::deffixequiv algo1)
   (defruled algo1-is-u_i-or-w_i
-    (let* ((dv (algo1 i v f))
-           (i (algo1-i i v f))
+    (let* ((dv (algo1 from-i v f))
+           (i (algo1-i from-i v f))
            (u (u_i i v))
            (w (w_i i v)))
       (and (implies (not (= dv u)) (equal dv w))
            (implies (not (= dv w)) (equal dv u)))))
   (defrule in-tau-intervalp-algo1
-    (in-tau-intervalp (algo1 i v f) (Rv v f))
+    (in-tau-intervalp (algo1 from-i v f) (Rv v f))
     :enable in-tau-intervalp-algo1-i)
   (defrule has-D-length-algo1
-    (has-D-length  (algo1 from v f) (algo1-i from v f))))
+    (has-D-length (algo1 from-i v f) (algo1-i from-i v f))))
 
 (rule ; Example 1
  (let* ((f (dp))
-        (v (rne #f0.0811 (prec f))))
+        (v (rne #f0.0811 (prec f)))
+        (from-i 1))
    (and
     (= v #f0.081100000000000005417888360170763917267322540283203125)
-    (= (algo1-i 1 v f) 3)
-    (= (algo1 1 v f) #f0.0811)))
+    (= (algo1-i from-i v f) 3)
+    (= (algo1 from-i v f) #f0.0811)))
  :enable ((dp)))

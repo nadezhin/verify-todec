@@ -1,6 +1,3 @@
-#|
-(include-book "rtl/rel11/portcullis" :dir :system)
-|#
 (in-package "RTL")
 (include-book "section7")
 
@@ -13,14 +10,13 @@
 (define H
   ((f formatp))
   :returns (H (and (integerp H) (< 1 H)) :rule-classes :type-prescription
-              :hints (("goal" :use (:instance expe>=
-                                              (b (D))
-                                              (x (* 2 (2^{P-1} f)))
-                                              (n 0)))))
-  (+ (expe (* 2 (2^{P-1} f)) (D)) 2)
+              :hints (("goal" :use (:instance result-1-4
+                                              (x 1)
+                                              (y (* 2 (2^{P-1} f)))))))
+  (+ (ordD (* 2 (2^{P-1} f))) 1)
   ///
   (fty::deffixequiv H)
-  (acl2::with-arith5-help
+  (acl2::with-arith5-nonlinear-help
    (defrule H-def
      (implies (integerp n)
               (equal (> (expt (D) (- n 1)) (* 2 (2^{P-1} f)))
@@ -28,14 +24,9 @@
      :rule-classes ()
      :cases ((>= n (H f))
              (<= n (1- (H f))))
-     :hints (("subgoal 2" :use (:instance expe>=
-                                          (b (D))
-                                          (n (1- n))
-                                          (x (* 2 (2^{P-1} f)))))
-             ("subgoal 1" :use (:instance expe<=
-                                          (b (D))
-                                          (n (- n 2))
-                                          (x (* 2 (2^{P-1} f)))))))))
+     :use (:instance result-1-3
+                     (x (* 2 (2^{P-1} f)))
+                     (k (ordD (* 2 (2^{P-1} f))))))))
 
 (rule
  (and (= (H (hp)) 5)
@@ -62,7 +53,7 @@
 ; decimal of length H-1 which is rounded back to v.
 ; It is proved by enumeration of all members of the format.
 
-(defrule result-3-incorrect-for-artificalformat
+(defrule result-3-1-incorrect-for-artificalformat
  (let* ((f *format-for-result-3*)
         (i (- (H *format-for-result-3*) 1))
         (dv (algo1 i v f)))
@@ -132,7 +123,7 @@
 |#
 
 ; First part of result-3 for half-precision format (hp)
-(defrule result-3-hp
+(defrule result-3-1-hp
   (let* ((f (hp))
          (v #fx1.ff8p3))
     (implies (and (posp i)
@@ -141,15 +132,15 @@
                   (has-D-length d i))
              (and (finite-positive-binary-p v f)
                   (not (in-tau-intervalp d (Rv v f))))))
-  :use (:instance i<=max-from-j-algo1
-                  (from 1)
+  :use (:instance algo1-i<=max-from-i-j
+                  (from-i 1)
                   (f (hp))
                   (v #fx1.ff8p3)
                   (j i))
   :enable (hp))
 
 ; First part of result-3 for single-precision format (sp)
-(defrule result-3-sp
+(defrule result-3-1-sp
   (let* ((f (sp))
          (v #fx1.fffffcp6))
     (implies (and (posp i)
@@ -158,15 +149,15 @@
                   (has-D-length d i))
              (and (finite-positive-binary-p v f)
                   (not (in-tau-intervalp d (Rv v f))))))
-  :use (:instance i<=max-from-j-algo1
-                  (from 1)
+  :use (:instance algo1-i<=max-from-i-j
+                  (from-i 1)
                   (f (sp))
                   (v #fx1.fffffcp6)
                   (j i))
   :enable (sp))
 
 ; First part of result-3 for double-precision format (dp)
-(defrule result-3-dp
+(defrule result-3-1-dp
   (let* ((f (dp))
          (v #fx1.fffffffffffffp0))
     (implies (and (posp i)
@@ -175,15 +166,15 @@
                   (has-D-length d i))
              (and (finite-positive-binary-p v f)
                   (not (in-tau-intervalp d (Rv v f))))))
-  :use (:instance i<=max-from-j-algo1
-                  (from 1)
+  :use (:instance algo1-i<=max-from-i-j
+                  (from-i 1)
                   (f (dp))
                   (v #fx1.fffffffffffffp0)
                   (j i))
   :enable (dp))
 
 ; First part of result-3 for extended-precision format (ep)
-(defrule result-3-ep
+(defrule result-3-1-ep
   (let* ((f (ep))
          (v #fx1.fffffffffffffff8p3))
     (implies (and (posp i)
@@ -192,88 +183,308 @@
                   (has-D-length d i))
              (and (finite-positive-binary-p v f)
                   (not (in-tau-intervalp d (Rv v f))))))
-  :use (:instance i<=max-from-j-algo1
-                  (from 1)
+  :use (:instance algo1-i<=max-from-i-j
+                  (from-i 1)
                   (f (ep))
                   (v #fx1.fffffffffffffff8p3)
                   (j i))
   :enable (ep))
 
+(acl2::with-arith5-help
+ (defrule algo1-i<=max-from-i-H
+   (<= (algo1-i from-i v f) (max (acl2::pos-fix from-i) (H f)))
+   :rule-classes :linear
+   :enable (u_i-linear w_i-linear)
+   :use ((:instance algo1-i<=max-from-i-j
+                    (d (if (in-tau-intervalp (u_i (H f) v) (Rv v f))
+                           (u_i (H f) v)
+                         (w_i (H f) v)))
+                    (j (H f)))
+         (:instance u-or-w-in-Rv
+                   (u (u_i (H f) v))
+                   (w (w_i (H f) v))))
+   :prep-lemmas
+   ((acl2::with-arith5-nonlinear++-help
+     (defruled lemma1
+       (< (expt (D) (- (e v) (H f))) (wid-Rv v f))
+       :rule-classes :linear
+       :cases ((not (< (expt (D) (+ (- (H f)) (e v)))
+                       (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))))
+               (not (<= (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))
+                        (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))))
+               (not (<= (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))
+                        (wid-Rv v f))))
+       :hints (("subgoal 3" :use (:instance H-def (n (H f))))
+               ("subgoal 2" :in-theory (enable e)
+                :use (:instance result-1-3
+                                (x (pos-rational-fix v))
+                                (k (ordD v))))
+               ("subgoal 1" :in-theory (enable wid-Rv-as-c-q c)
+                :use (:instance c-linear (x v))))))
+    (defrule lemma2
+      (< (w_i (H f) v) (+ (wid-Rv v f) (u_i (H f) v)))
+      :enable (lemma1 w_i-as-u_i)))))
+
+
 ; Second part of result 3
-(defrule result-3
+(defrule result-3-2
   (implies (and (integerp i)
                 (>= i (H f))
-                (finite-positive-binary-p v f))
-           (let ((dv (algo1 i v f)))
+                (posp from-i)
+                (>= i from-i))
+           (let ((dv (algo1 from-i v f)))
              (and (has-D-length dv i)
                   (in-tau-intervalp dv (Rv v f)))))
-  :enable algo1-is-u_i-or-w_i
-  :cases ((= (algo1 i v f) (u_i i v))
-          (= (algo1 i v f) (w_i i v)))
-  :prep-lemmas
-  ((acl2::with-arith5-nonlinear++-help
-    (defrule lemma0
-     (implies (and (integerp i)
-                   (>= i (H f)))
-              (< (expt (D) (+ (- i) (e v))) (wid-Rv v f)))
-     :cases ((not (< (expt (D) (+ (- i) (e v)))
-                     (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))))
-             (not (<= (* (expt (D) (1- (e v))) (/ 1/2 (2^{P-1} f)))
-                      (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))))
-             (not (<= (* (pos-rational-fix v) (/ 1/2 (2^{P-1} f)))
-                      (wid-Rv v f))))
-     :hints (("subgoal 3" :use (:instance H-def (n i)))
-             ("subgoal 2" :in-theory (enable e)
-              :use (:instance result-1-3
-                      (x (pos-rational-fix v))
-                      (k (ordD v))))
-             ("subgoal 1" :in-theory (enable wid-Rv-as-c-q c)
-              :use (:instance c-linear (x v))))))
-   (acl2::with-arith5-help
-    (defrule lemma
-     (implies (and (integerp i)
-                   (>= i (H f)))
-              (equal (algo1-i i v f) i))
-     :enable (u_i-linear w_i-linear algo1-i
-                         w_i-as-u_i)
-     :use (:instance u-or-w-in-Rv
-                     (u (u_i i v))
-                     (w (w_i i v)))))))
+  :use ((:instance has-D-length-monotone
+                  (x (algo1 from-i v f))
+                  (i (algo1-i from-i v f))
+                  (j i))
+        algo1-i<=max-from-i-H))
 
-#|
 (define G
   ((f formatp))
-  :returns (H natp :rule-classes :type-prescription
-              :hints (("goal" :use (:instance expe>=
-                                              (b (D))
-                                              (x (* 2 (2^{P-1} f)))
-                                              (n 0)))))
+  :returns (G natp :rule-classes :type-prescription
+              :hints (("goal" :use (:instance result-1-4
+                                              (x 1)
+                                              (y (2^{P-1} f))))))
   (let ((ordD (ordD (2^{P-1} f))))
-    (if (= (w^{P-1} f) (expt (D) ordD)) (- ordD
-  (+ (expe (* 2 (2^{P-1} f)) (D)) 2)
+    (if (= (2^{P-1} f) (expt (D) (- ordD 1))) (- ordD 2) (- ordD 1)))
   ///
-  (fty::deffixequiv H)
-  (acl2::with-arith5-help
-   (defrule H-def
+  (fty::deffixequiv G)
+  (acl2::with-arith5-nonlinear-help
+   (defrule G-def
      (implies (integerp n)
-              (equal (> (expt (D) (- n 1)) (* 2 (2^{P-1} f)))
-                     (>= n (H f))))
+              (equal (> (2^{P-1} f) (expt (D) n))
+                     (<= n (G f))))
      :rule-classes ()
-     :cases ((>= n (H f))
-             (<= n (1- (H f))))
-     :hints (("subgoal 2" :use (:instance expe>=
-                                          (b (D))
-                                          (n (1- n))
-                                          (x (* 2 (2^{P-1} f)))))
-             ("subgoal 1" :use (:instance expe<=
-                                          (b (D))
-                                          (n (- n 2))
-                                          (x (* 2 (2^{P-1} f)))))))))
+     :cases ((<= n (G f))
+             (>= n (1+ (G f))))
+     :use (:instance result-1-3
+                     (x (2^{P-1} f))
+                     (k (ordD (2^{P-1} f)))))))
 
 (rule
- (and (= (H (hp)) 5)
-      (= (H (sp)) 9)
-      (= (H (dp)) 17)
-      (= (H (ep)) 21))
+ (and (= (G (hp)) 3)
+      (= (G (sp)) 6)
+      (= (G (dp)) 15)
+      (= (G (ep)) 18))
  :enable (hp sp dp ep))
-|#
+
+(acl2::with-arith5-nonlinear++-help
+ (defrule MIN_NORMAL-lemma
+  (implies (and (pos-rationalp v)
+                (<= (MIN_NORMAL f) v))
+           (>= (* v (/ (2^{P-1} f)))
+               (expt 2 (q v f))))
+  :enable c
+  :use (:instance c-vs-MIN_NORMAL (x v))))
+
+(acl2::with-arith5-help
+ (defruled ulps-when-i<=G-and-normal
+   (implies (and (posp i)
+                 (<= i (G f))
+                 (<= (MIN_NORMAL f) (pos-rational-fix v)))
+            (< (expt 2 (q v f))
+               (expt (D) (- (e v) i))))
+   :cases ((not (<= (expt 2 (q v f))
+                    (/ (pos-rational-fix v) (2^{P-1} f))))
+           (not (<  (/ (pos-rational-fix v) (2^{P-1} f))
+                    (/ (expt (D) (e v)) (2^{P-1} f))))
+           (not (<  (/ (expt (D) (e v)) (2^{P-1} f))
+                    (expt (D) (- (e v) i)))))
+   :hints
+   (("subgoal 3" :use (:instance MIN_NORMAL-lemma
+                                 (v (pos-rational-fix v))))
+    ("subgoal 2" :in-theory (enable e)
+     :use (:instance result-1-3
+                     (x v)
+                     (k (ordD v))))
+    ("subgoal 1" :use (:instance G-def
+                                 (n (acl2::pos-fix i)))))))
+
+
+(defruled at-most-one-above-when-i<=G-and-normal
+  (implies (and (< (w_i i v) d)
+                (<= (acl2::pos-fix i) (G f))
+                (<= (MIN_NORMAL f) (pos-rational-fix v))
+                (pos-rationalp d)
+                (has-D-length d i))
+           (not (in-tau-intervalp d (Rv v f))))
+  :enable (in-tau-intervalp-Rv w_i-linear)
+  :use ((:instance lemma
+                   (i (acl2::pos-fix i))
+                   (w (w_i i v)))
+        lemma1)
+  :prep-lemmas
+  ((acl2::with-arith5-help
+    (defruled lemma0
+      (equal (* (c v f) (expt 2 (q v f)))
+             (pos-rational-fix v))
+      :enable c))
+   (acl2::with-arith5-help
+    (defrule vr-alt
+      (equal (vr v f)
+             (+ (pos-rational-fix v) (* (expt 2 (- (q v f) 1)))))
+      :enable (vr c)))
+   (acl2::with-arith5-nonlinear-help
+    (defruled lemma1
+      (implies (and (<= (acl2::pos-fix i) (G f))
+                    (<= (MIN_NORMAL f) (pos-rational-fix v)))
+               (< (expt 2 (- (q v f) 1))
+                  (expt (D) (+ (- (acl2::pos-fix i)) (e (w_i i v))))))
+      :enable (e w_i-linear)
+      :use ((:instance ulps-when-i<=G-and-normal
+                       (i (acl2::pos-fix i)))
+            (:instance result-1-4
+                       (x v)
+                       (y (w_i i v))))))
+   (defruled lemma
+     (implies (and (pos-rationalp w)
+                   (pos-rationalp d)
+                   (posp i)
+                   (has-D-length w i)
+                   (has-D-length d i)
+                   (< w d))
+              (<= (+ w (expt (D) (- (e w) i))) d))
+     :enable (has-D-length-as-exactrp e-as-expe expq)
+     :use (:instance fpr+2
+                     (b (D))
+                     (p i)
+                     (x w)
+                     (y d)))))
+
+(defruled at-most-one-below-when-i<=G-and-normal
+  (implies (and (< D (u_i i v))
+                (<= (acl2::pos-fix i) (G f))
+                (<= (MIN_NORMAL f) (pos-rational-fix v))
+                (pos-rationalp d)
+                (has-D-length d i))
+           (not (in-tau-intervalp d (Rv v f))))
+  :enable (in-tau-intervalp-Rv u_i-linear)
+  :cases ((= (u_i i v) (expt (D) (1- (e (u_i i v))))))
+  :use ((:instance lemma
+                   (i (acl2::pos-fix i))
+                   (u (u_i i v)))
+        vl-alt-2)
+  :hints (("subgoal 2" :use lemma2)
+          ("subgoal 1" :use lemma1))
+  :prep-lemmas
+  ((acl2::with-arith5-help
+    (defrule vl-alt-2
+      (>= (vl v f)
+          (- (pos-rational-fix v) (* (expt 2 (- (q v f) 1)))))
+      :enable (vl c)))
+   (acl2::with-arith5-help
+    (defruled lemma0
+      (< (* 1/2 (pos-rational-fix v)) (u_i i v))
+      :cases ((<= (w_i i v) (* 2 (u_i i v))))
+      :hints (("subgoal 2" :in-theory (enable u_i w_i t_i))
+              ("subgoal 1" :in-theory (enable w_i-linear)))))
+   (acl2::with-arith5-help
+    (defruled lemma1
+      (implies (and (<= (acl2::pos-fix i) (G f))
+                    (<= (MIN_NORMAL f) (pos-rational-fix v))
+                    (= (u_i i v) (expt (D) (1- (e (u_i i v))))))
+               (< (expt 2 (- (q v f) 1))
+                  (expt (D) (+ -1 (- (acl2::pos-fix i)) (e (u_i i v))))))
+      :cases ((not (<= (expt 2 (- (q v f) 1))
+                       (/ (pos-rational-fix v) (* 2 (2^{P-1} f)))))
+              (not (<  (/ (pos-rational-fix v) (* 2 (2^{P-1} f)))
+                       (/ (pos-rational-fix (u_i i v)) (2^{P-1} f))))
+              (not (=  (/ (pos-rational-fix (u_i i v)) (2^{P-1} f))
+                       (/ (expt (D) (1- (e v))) (2^{P-1} f))))
+              (not (<  (/ (expt (D) (1- (e v))) (2^{P-1} f))
+                       (expt (D) (+ -1 (- (acl2::pos-fix i)) (e v)))))
+              (not (=  (expt (D) (+ -1 (- (acl2::pos-fix i)) (e v)))
+                       (expt (D) (+ -1 (- (acl2::pos-fix i)) (e (u_i i v)))))))
+      :hints
+      (("subgoal 5" :use (:instance MIN_NORMAL-lemma
+                                    (v (pos-rational-fix v))))
+       ("subgoal 4" :in-theory (enable lemma0))
+       ("subgoal 3" :in-theory (enable e))
+       ("subgoal 2" :use (:instance G-def
+                                    (n (acl2::pos-fix i))))
+       ("subgoal 1" :in-theory (enable e)))))
+   (acl2::with-arith5-nonlinear-help
+    (defruled lemma2
+      (implies (and (<= (acl2::pos-fix i) (G f))
+                    (<= (MIN_NORMAL f) (pos-rational-fix v)))
+               (< (expt 2 (- (q v f) 1))
+                  (expt (D) (+ (- (acl2::pos-fix i)) (e (u_i i v))))))
+      :enable (e u_i-linear)
+      :use ((:instance ulps-when-i<=G-and-normal
+                       (i (acl2::pos-fix i))))))
+   (defruled lemma
+     (implies (and (pos-rationalp u)
+                   (pos-rationalp d)
+                   (posp i)
+                   (has-D-length u i)
+                   (has-D-length d i)
+                   (< d u))
+              (let ((e (if (= u (expt (D) (1- (e u))))
+                           (- (e u) 1)
+                         (e u))))
+                (<= d (- u (expt (D) (- e i))))))
+     :enable (has-D-length-as-exactrp e-as-expe expq)
+     :use (:instance fpr-2
+                     (b (D))
+                     (p i)
+                     (x u)
+                     (y d)))))
+
+(defrule may-contain-only-u_i-or-W-i-when-i<=G-and-normal
+ (implies (and (<= (acl2::pos-fix i) (G f))
+               (<= (MIN_NORMAL f) (pos-rational-fix v))
+               (pos-rationalp d)
+               (has-D-length d i)
+               (in-tau-intervalp d (Rv v f)))
+          (or (equal d (u_i i v))
+              (equal d (w_i i v))))
+ :rule-classes ()
+ :enable (at-most-one-below-when-i<=G-and-normal
+          at-most-one-above-when-i<=G-and-normal
+          u_i-linear w_i-linear)
+ :use uninteresting-other-than-u_i-w_i
+ :cases ((< d (u_i i v)) (> d (w_i i v))))
+
+
+; First part of result 4
+; Hypotheis v >= MIN_NORMAL is weaker than in the paper
+(defrule result-4-part-1
+   (implies (and (posp i)
+                 (<= i (G f))
+                 (pos-rationalp v)
+                 (>= v (MIN_NORMAL f))
+                 (pos-rationalp d1)
+                 (has-D-length d1 i)
+                 (in-tau-intervalp d1 (Rv v f))
+                 (pos-rationalp d2)
+                 (has-D-length d2 i)
+                 (not (= d1 d2)))
+            (not (in-tau-intervalp d2 (Rv v f))))
+   :enable (wid-Rv-as-c-q w_i-as-u_i)
+   :use ((:instance may-contain-only-u_i-or-W-i-when-i<=G-and-normal
+                    (d d1))
+         (:instance may-contain-only-u_i-or-W-i-when-i<=G-and-normal
+                    (d d2))
+         (:instance at-most-one-in-Rv
+                    (u (u_i i v))
+                    (w (w_i i v)))
+         (:instance ulps-when-i<=G-and-normal)))
+
+; Counterexample for second part of result 4
+; No decimals of length G+1 in the rounding interval of this v
+(rule
+ (let* ((f (dp))
+        (i (+ (G f) 1))
+        (v #fx1.0000000000001p0))
+   (and (finite-positive-binary-p v f)
+        (> v (MIN_NORMAL f))
+        (implies (and (pos-rationalp d)
+                      (has-D-length d i))
+                 (not (in-tau-intervalp d (Rv v f))))))
+ :use (:instance uninteresting-other-than-u_i-w_i
+                 (f (dp))
+                 (i (+ (G (dp)) 1))
+                 (v #fx1.0000000000001p0))
+ :enable dp)

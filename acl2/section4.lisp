@@ -119,4 +119,14 @@
    :rule-classes ()
    :enable (wid-Rv Rv))
 
+(defrule at-most-one-in-Rv
+   (let ((v (pos-rational-fix v)))
+     (implies (and (> (- w u) (wid-Rv v f))
+                   (rationalp u)
+                   (rationalp w))
+              (or (not (in-tau-intervalp u (Rv v f)))
+                  (not (in-tau-intervalp w (Rv v f))))))
+   :rule-classes ()
+   :enable (wid-Rv Rv))
+
 (in-theory (disable tau-intervalp in-tau-intervalp tau-interval-lo tau-interval-hi))
