@@ -31,6 +31,14 @@
                   (expt (D) k-equiv)))
   :rule-classes :congruence)
 
+(define ord2
+  ((x pos-rationalp))
+  :returns (ord2 integerp :rule-classes ())
+  (let ((x (pos-rational-fix x)))
+    (1+ (expe x 2)))
+  ///
+  (fty::deffixequiv ord2))
+
 (define ordD
   ((x pos-rationalp))
   :returns (ordD integerp :rule-classes ())
@@ -67,6 +75,20 @@
   :cases ((= k (ordD x)))
   :use (:instance expe-unique
                   (b (D))
+                  (x (pos-rational-fix x))
+                  (n (1- k))))
+
+(defrule result-1-3-ord2
+  (equal (= k (ord2 x))
+         (let ((x (pos-rational-fix x)))
+           (and (integerp k)
+                (<= (expt 2 (- k 1)) x)
+                (< x (expt 2 k)))))
+  :rule-classes ()
+  :enable (ord2 expe-lower-bound expe-upper-bound)
+  :cases ((= k (ord2 x)))
+  :use (:instance expe-unique
+                  (b 2)
                   (x (pos-rational-fix x))
                   (n (1- k))))
 

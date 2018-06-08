@@ -250,6 +250,16 @@
     (if (= 2^{p-1} (expt (D) (- ordD 1))) (- ordD 2) (- ordD 1)))
   ///
   (fty::deffixequiv Gp)
+  (defrule Gp-monotone
+    (implies (<= (ifix p1) (ifix p2))
+             (<= (Gp p1) (Gp p2)))
+    :disable ifix
+    :use ((:instance result-1-4
+                     (x (expt 2 (1- (ifix p1))))
+                     (y (expt 2 (1- (ifix p2)))))
+          (:instance result-1-3
+                     (x (expt 2 (1- (ifix p1))))
+                     (k  (ordD (expt 2 (1- (ifix p2))))))))
   (acl2::with-arith5-help
    (defrule Gp-def
      (implies (integerp n)
