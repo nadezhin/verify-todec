@@ -80,11 +80,11 @@
                    (n (expt (D) (- (H f) i))))))
 
 (define !q
-  ((x pos-rationalp)
+  ((v pos-rationalp)
    (f formatp))
   :returns (!q integerp :rule-classes ())
-  (let ((q (q x f))
-        (c (c x f)))
+  (let ((q (q v f))
+        (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
         (- q 1)
       (- q 2)))
@@ -92,18 +92,18 @@
   (fty::deffixequiv !q))
 
 (define !c
-  ((x pos-rationalp)
+  ((v pos-rationalp)
    (f formatp))
   :returns (!c pos-rationalp :rule-classes ())
-  (let ((q (q x f))
-        (c (c x f)))
+  (let ((q (q v f))
+        (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
         (* 2 c)
       (* 4 c)))
   ///
   (fty::deffixequiv !c)
   (defrule !c-linear
-    (<= (!c x f) (* 4 (2^{P-1} f)))
+    (<= (!c v f) (* 4 (2^{P-1} f)))
     :rule-classes :linear)
   (defrule !c-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
@@ -117,18 +117,18 @@
      :enable (!q c))))
 
 (define !cr
-  ((x pos-rationalp)
+  ((v pos-rationalp)
    (f formatp))
   :returns (!cr pos-rationalp :rule-classes ())
-  (let ((q (q x f))
-        (c (c x f)))
+  (let ((q (q v f))
+        (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
-        (+ (!c x f) 1)
-      (+ (!c x f) 2)))
+        (+ (!c v f) 1)
+      (+ (!c v f) 2)))
   ///
   (fty::deffixequiv !cr)
   (defrule !cr-linear
-    (<= (!cr x f) (+ 2 (* 4 (2^{P-1} f))))
+    (<= (!cr v f) (+ 2 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
   (defrule !cr-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
@@ -142,14 +142,14 @@
      :enable (!q !c c vr))))
 
 (define !cl
-  ((x pos-rationalp)
+  ((v pos-rationalp)
    (f formatp))
   :returns (!cl rationalp :rule-classes ())
-  (- (!c x f) 1)
+  (- (!c v f) 1)
   ///
   (fty::deffixequiv !cl)
   (defrule !cl-linear
-    (<= (!cl x f) (+ -1 (* 4 (2^{P-1} f))))
+    (<= (!cl v f) (+ -1 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
   (defrule !cl-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
@@ -160,3 +160,151 @@
      (equal (* (!cl v f) (expt 2 (!q v f)))
             (vl v f))
      :enable (!q !c vl-alt))))
+
+(acl2::with-arith5-help
+ (define S
+   ((v pos-rationalp)
+    (f formatp))
+   :returns (S pos-rationalp :rule-classes ())
+   (let ((e (e v))
+         (H (H f))
+         (!q (!q v f)))
+     (if (> e H)
+         (expt 2 (- H e)) ; XL or L
+       (if (>= (+ H (- e) !q) 0)
+           (expt (D) (- H e)) ; M
+         (* (expt 2 (- !q)) (expt (D/2) (- H e)))))) ; XS or S
+   ///
+   (fty::deffixequiv S)))
+
+(acl2::with-arith5-help
+ (define T_
+   ((v pos-rationalp)
+    (f formatp))
+   :returns (T_ pos-rationalp :rule-classes ())
+   (/ (expt (D) (- (H f) (e v))) (S v f))
+   ///
+   (fty::deffixequiv T_)))
+
+(define !v
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (!v pos-rationalp :rule-classes ())
+  (* (pos-rational-fix v) (S v f))
+  ///
+  (fty::deffixequiv !v))
+
+(define !vl
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (!vl rationalp :rule-classes ())
+  (* (vl v f) (S v f))
+  ///
+  (fty::deffixequiv !vl))
+
+(define !vr
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (!vr pos-rationalp :rule-classes ())
+  (* (vr v f) (S v f))
+  ///
+  (fty::deffixequiv !vr))
+
+(define !u_i
+  ((i posp)
+   (v pos-rationalp)
+   (f formatp))
+  :returns (!vr pos-rationalp :rule-classes ())
+  (* (u_i i v) (S v f))
+  ///
+  (fty::deffixequiv !u_i))
+
+(define !w_i
+  ((i posp)
+   (v pos-rationalp)
+   (f formatp))
+  :returns (!vr pos-rationalp :rule-classes ())
+  (* (w_i i v) (S v f))
+  ///
+  (fty::deffixequiv !w_i))
+
+(defruled result-7-part-1-dp
+  (let* ((f (dp))
+         (H (H f))
+         (e (e v)))
+    (implies (and (pos-rationalp v)
+                  (< v (MIN_NORMAL f)))
+             (<= e H)))
+  :enable (e (dp))
+  :use (:instance result-1-4
+                  (x v)
+                  (y (MIN_NORMAL (dp)))))
+
+(defruled result-7-part-2-dp
+  (let* ((f (dp))
+         (H (H f))
+         (e (e v))
+         (!q (!q v f)))
+    (implies (and (finite-positive-binary-p v f)
+                  (< v (MIN_NORMAL f)))
+             (< (+ H (- e) !q) 0)))
+  :enable (e !q (dp))
+  :use ((:instance finite-positive-binary-necc
+                   (x v)
+                   (f (dp)))
+        (:instance c-vs-MIN_NORMAL
+                   (x v)
+                   (f (dp)))
+        (:instance result-1-4
+                   (x (MIN_VALUE (dp)))
+                   (y v))))
+#|
+(acl2::with-arith5-help
+ (defrule case-impossible-dp
+   (let* ((f (dp))
+          (H (H f))
+          (e (e v))
+          (!q (!q v f)))
+     (implies (and (pos-rationalp v)
+                   (< (- H e) 0))
+              (>= (+ (- H e) !q) 0)))
+   :enable (e !q q expq (dp))
+   :cases ((>= v #f1e17))
+   :hints
+   (("subgoal 2" :use (:instance result-1-3
+                                 (x v)
+                                 (k (ordD v))))
+    )
+
+   ))
+   :use (:instance result-1-4
+                   (x v)
+                   (y (expt (D) 17)))
+   :hints
+   (("subgoal 8'''" :in-theory (enable (D))
+     :use (:instance expe-monotone
+                                 (b 2)
+                                 (x 0)
+                                 (y v)))
+    )
+;   :enable (e !q q expq (dp))
+;   :use ((:instance result-1-3
+;                    (x v)
+;                    (k (ordD v)))
+         )
+   ))
+
+
+(let* ((f (dp))
+       (H (H f))
+       (v (expt (D) H))
+       (e (e v))
+       (!q (!q v f)))
+  (list
+   :v v
+   :e e
+   :q !q))
+    (implies (and (pos-rationalp v)
+                  (< (- H e) 0))
+             (>= (+ (- H e) !q) 0)))
+|#
