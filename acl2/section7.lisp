@@ -105,7 +105,7 @@
         (= (digitn (f (w_i i v)) (- i) (D)) 1)
         (not (evenp (digitn (f (u_i i v)) (- i) (D))))
         (not (evenp (digitn (f (w_i i v)) (- i) (D))))))
- :enable D)
+ :enable ((D)))
 
 (defruled algo1-satisfies-specs
    (let ((dv (algo1 from-i v f))

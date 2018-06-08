@@ -45,6 +45,27 @@
   (equal (ordD (f x)) 0)
   :use (:instance result-1-3 (k 0) (x (f x))))
 
+(define Emin
+  ((f formatp))
+  :returns (Emin integerp :rule-classes ())
+  (e (MIN_VALUE f))
+  ///
+  (fty::deffixequiv Emin))
+
+(define Esmall
+  ((f formatp))
+  :returns (Esmall integerp :rule-classes ())
+  (e (MIN_NORMAL f))
+  ///
+  (fty::deffixequiv Esmall))
+
+(define Emax
+  ((f formatp))
+  :returns (Emax integerp :rule-classes ())
+  (e (MAX_VALUE f))
+  ///
+  (fty::deffixequiv Emax))
+
 ; Use result-2 statement as definition in proof script
 (define has-D-length
   ((x pos-rationalp)

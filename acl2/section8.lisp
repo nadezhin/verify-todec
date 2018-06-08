@@ -266,7 +266,7 @@
               (equal (> (expt 2 (- (ifix p) 1)) (expt (D) n))
                      (<= n (Gp p))))
      :rule-classes ()
-     :enable D
+     :enable ((D))
      :cases ((<= n (Gp p))
              (>= n (1+ (Gp p))))
      :use (:instance result-1-3
