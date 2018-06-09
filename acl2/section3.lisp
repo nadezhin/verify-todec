@@ -165,7 +165,15 @@
     :enable (Qmin P 2^{W-1}-as-bias expq))
   (defrule q-linear
     (<= (Qmin f) (q x f))
-    :rule-classes :linear))
+    :rule-classes :linear)
+  (defruled q-monotone
+    (implies (<= (pos-rational-fix x) (pos-rational-fix y))
+             (<= (q x f) (q y f)))
+    :use (:instance expq-monotone
+                    (b 2)
+                    (p (P f))
+                    (x (pos-rational-fix x))
+                    (y (pos-rational-fix y)))))
 
 (defrule q-when-drepp
   (implies (and (drepp x f)

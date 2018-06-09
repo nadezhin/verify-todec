@@ -3,9 +3,10 @@
 |#
 (in-package "RTL")
 (include-book "section10")
+(include-book "ranges")
 
 (local (include-book "rtl/rel11/support/float" :dir :system))
-(local (include-book "std/basic/inductions" :dir :system))
+;(local (include-book "std/basic/inductions" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (acl2::with-arith5-help
@@ -89,7 +90,19 @@
         (- q 1)
       (- q 2)))
   ///
-  (fty::deffixequiv !q))
+  (fty::deffixequiv !q)
+  (acl2::with-arith5-help
+   (defruled !q-monotone
+     (implies (<= (pos-rational-fix v1) (pos-rational-fix v2))
+              (<= (!q v1 f) (!q v2 f)))
+     :use (:instance q-monotone
+                     (x v1)
+                     (y v2))
+     :cases ((= (q v1 f) (q v2 f)))
+     :hints
+     (("subgoal 1" :cases ((<= (c v1 f) (c v2 f))))
+      ("subgoal 1.2" :in-theory (enable c))
+      ("subgoal 1.1" :in-theory (enable q c-as-sigc sigc-lower-bound 2^{P-1}))))))
 
 (define !c
   ((v pos-rationalp)
@@ -258,53 +271,93 @@
         (:instance result-1-4
                    (x (MIN_VALUE (dp)))
                    (y v))))
-#|
-(acl2::with-arith5-help
- (defrule case-impossible-dp
+
+(define Pred-case-impossible
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (yes booleanp :rule-classes ())
+  (let* ((H (H f))
+         (e (e v))
+         (!q (!q v f)))
+    (not (and (< (- H e) 0)
+              (< (+ (- H e) !q) 0))))
+  ///
+  (fty::deffixequiv Pred-case-impossible))
+
+(define check-range-case-impossible
+  ((f formatp)
+   (q integerp)
+   (c-min posp)
+   (c-max posp)
+   (ord2 integerp)
+   (ordD integerp)
+   (!q integerp))
+  :returns (yes booleanp :rule-classes ())
+  (declare (ignore q c-min c-max ord2))
+  (let* ((H (H f))
+         (e (ifix ordD))
+         (!q (ifix !q)))
+    (not (and (< (- H e) 0)
+              (< (+ (- H e) !q) 0))))
+  ///
+  (fty::deffixequiv check-range-case-impossible)
+  (defrule check-range-case-impossible-correct
+    (implies (check-range-case-impossible
+              f
+              (q v f)
+              c-min
+              c-max
+              (ord2 v)
+              (ordD v)
+              (!q v f))
+             (Pred-case-impossible v f))
+    :enable (Pred-case-impossible e)))
+
+(define check-ranges-case-impossible
+  ((ranges fp-range-list-p))
+  :returns (yes booleanp :rule-classes ())
+  (or (atom ranges)
+      (and (check-range-case-impossible
+            (fp-range->f (car ranges))
+            (fp-range->q (car ranges))
+            (fp-range->c-min (car ranges))
+            (fp-range->c-max (car ranges))
+            (fp-range->ord2 (car ranges))
+            (fp-range->ordD (car ranges))
+            (fp-range->!q (car ranges)))
+           (check-ranges-case-impossible (cdr ranges))))
+  ///
+  (fty::deffixequiv check-ranges-case-impossible))
+
+(defrule check-ranges-case-impossible-correct
+  (implies (and (valid-fp-ranges-p ranges f)
+                (check-ranges-case-impossible ranges)
+                (finite-positive-binary-p v f)
+                (consp ranges)
+                (or (< (q v f) (fp-range->q (car ranges)))
+                    (and (= (q v f) (fp-range->q (car ranges)))
+                         (<= (c v f) (fp-range->c-max (car ranges))))))
+           (Pred-case-impossible v f))
+  :hints (("subgoal 1" :in-theory (enable check-ranges-case-impossible)))
+  :use
+  (:instance
+    (:functional-instance
+     check-Pred-on-ranges-correct
+     (Pred Pred-case-impossible)
+     (check-Pred-on-range check-range-case-impossible)
+     (check-Pred-on-ranges check-ranges-case-impossible))))
+
+(defrule case-impossible
    (let* ((f (dp))
           (H (H f))
           (e (e v))
           (!q (!q v f)))
-     (implies (and (pos-rationalp v)
+     (implies (and (finite-positive-binary-p v f)
                    (< (- H e) 0))
               (>= (+ (- H e) !q) 0)))
-   :enable (e !q q expq (dp))
-   :cases ((>= v #f1e17))
-   :hints
-   (("subgoal 2" :use (:instance result-1-3
-                                 (x v)
-                                 (k (ordD v))))
-    )
-
-   ))
-   :use (:instance result-1-4
-                   (x v)
-                   (y (expt (D) 17)))
-   :hints
-   (("subgoal 8'''" :in-theory (enable (D))
-     :use (:instance expe-monotone
-                                 (b 2)
-                                 (x 0)
-                                 (y v)))
-    )
-;   :enable (e !q q expq (dp))
-;   :use ((:instance result-1-3
-;                    (x v)
-;                    (k (ordD v)))
-         )
-   ))
-
-
-(let* ((f (dp))
-       (H (H f))
-       (v (expt (D) H))
-       (e (e v))
-       (!q (!q v f)))
-  (list
-   :v v
-   :e e
-   :q !q))
-    (implies (and (pos-rationalp v)
-                  (< (- H e) 0))
-             (>= (+ (- H e) !q) 0)))
-|#
+   :enable Pred-case-impossible
+   :cases ((check-ranges-case-impossible (ranges-dp)))
+   :hints (("subgoal 2" :in-theory (enable ranges-dp))
+           ("subgoal 1" :use (:instance check-ranges-case-impossible-correct
+                                        (ranges (ranges-dp))
+                                        (f (dp))))))
