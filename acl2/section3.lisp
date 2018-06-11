@@ -63,6 +63,11 @@
            (+ (Qmin f) (* 2 (2^{W-1} f)) -3))
     :enable Qmin))
 
+(defruled Qmax-linear
+  (>= (Qmax f) (1+ (Qmin f)))
+  :rule-classes ((:linear :trigger-terms ((Qmax f))))
+  :enable Qmax-as-Qmin)
+
 (define Cmax
   ((f formatp))
   :returns (Cmax (and (integerp Cmax) (< 1 Cmax))
@@ -393,6 +398,29 @@
   :rule-classes :linear
   :enable Cmax
   :use finite-positive-binary-necc)
+
+(acl2::with-arith5-help
+ (defrule finite-positive-binary-range
+   (implies (finite-positive-binary-p v f)
+            (and (<= (MIN_VALUE f) v)
+                 (<= v (MAX_VALUE f))))
+   :rule-classes ()
+   :enable (MIN_VALUE MAX_VALUE)
+   :use (:instance finite-positive-binary-necc
+                   (x v))
+   :cases ((< v (MIN_VALUE f)) (< (MAX_VALUE f) v))
+   :hints (("subgoal 1" :use (:instance lemma
+                                        (q (q v f))
+                                        (c (c v f)))))
+   :prep-lemmas
+   ((acl2::with-arith5-nonlinear++-help
+    (defrule lemma
+      (implies (and (integerp q)
+                    (<= q (Qmax f))
+                    (posp c)
+                    (<= c (Cmax f)))
+               (<= (* c (expt 2 q)) (MAX_VALUE f)))
+      :enable MAX_VALUE)))))
 
 (rule
  (not (finite-positive-binary-p #f1.2 (dp)))

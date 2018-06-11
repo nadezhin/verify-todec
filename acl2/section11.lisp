@@ -68,13 +68,14 @@
     :enable result-1-5)))
 
 (acl2::with-arith5-help
- (defruled !s_i-as-!s_H
+ (defrule !s_i-as-!s_H
    (let ((H (H f)))
      (implies (and (posp i)
-                   (< i H))
+                   (<= i H))
               (equal (!s_i i v f)
                      (* (fl (/ (!s_i H v f) (expt (D) (- H i))))
                         (expt (D) (- H i))))))
+   :rule-classes ()
    :enable (!s_i s_i)
    :use (:instance fl/int-rewrite
                    (x (* (f v) (expt (D) (H f))))
@@ -91,6 +92,12 @@
       (- q 2)))
   ///
   (fty::deffixequiv !q)
+  (defrule !q-linear
+    (implies (finite-positive-binary-p v f)
+             (and (<= (1- (Qmin f)) (!q v f))
+                  (<= (!q v f) (1- (Qmax f)))))
+    :rule-classes :linear
+    :enable Qmax-as-Qmin)
   (acl2::with-arith5-help
    (defruled !q-monotone
      (implies (<= (pos-rational-fix v1) (pos-rational-fix v2))
@@ -199,29 +206,29 @@
    ///
    (fty::deffixequiv T_)))
 
-(define !v
+(define vb
   ((v pos-rationalp)
    (f formatp))
-  :returns (!v pos-rationalp :rule-classes ())
+  :returns (!vb pos-rationalp :rule-classes ())
   (* (pos-rational-fix v) (S v f))
   ///
-  (fty::deffixequiv !v))
+  (fty::deffixequiv vb))
 
-(define !vl
+(define vbl
   ((v pos-rationalp)
    (f formatp))
-  :returns (!vl rationalp :rule-classes ())
+  :returns (!vbl rationalp :rule-classes ())
   (* (vl v f) (S v f))
   ///
-  (fty::deffixequiv !vl))
+  (fty::deffixequiv vbl))
 
-(define !vr
+(define vbr
   ((v pos-rationalp)
    (f formatp))
-  :returns (!vr pos-rationalp :rule-classes ())
+  :returns (!vbr pos-rationalp :rule-classes ())
   (* (vr v f) (S v f))
   ///
-  (fty::deffixequiv !vr))
+  (fty::deffixequiv vbr))
 
 (define !u_i
   ((i posp)
@@ -361,3 +368,23 @@
            ("subgoal 1" :use (:instance check-ranges-case-impossible-correct
                                         (ranges (ranges-dp))
                                         (f (dp))))))
+#|
+(define algo2-loop-body
+
+(define algo2-
+  ((g integerp)
+   (v pos-rationalp)
+   (f formatp))
+  :measure (algo1-measure (- (H f) (nfix g)) v f)
+  :guard (
+  :returns (g natp :rule-classes ())
+  (if (natp g)
+  (let ((i (acl2::pos-fix i)))
+    (if (and (not (in-tau-intervalp (u_i i v) (Rv v f)))
+             (not (in-tau-intervalp (w_i i v) (Rv v f))))
+        (algo1-i (+ i 1) v f)
+      i))
+  ///
+  (fty::deffixequiv algo2-i)
+|#
+
