@@ -1,81 +1,77 @@
-#|
-(include-book "rtl/rel11/portcullis" :dir :system)
-|#
 (in-package "RTL")
 (include-book "ihs/basic-definitions" :dir :system)
-(include-book "kestrel/utilities/bytes" :dir :system)
-(include-book "section11")
+(include-book "kestrel/utilities/fixbytes/instances" :dir :system)
+(include-book "rtl/rel11/portcullis" :dir :system)
 
-(local (include-book "rtl/rel11/support/basic" :dir :system))
-(local (include-book "rtl/rel11/support/reps" :dir :system))
-
+(include-book "tools/with-arith5-help" :dir :system)
 (local (acl2::allow-arith5-help))
 
+; Coerce x to a signed integer which will fit in n bits.
 (acl2::with-arith5-help
- (define s32
+ (acl2::define s32
    ((x integerp))
    :returns (result acl2::sbyte32p
                     :hints (("goal" :in-theory (enable acl2::sbyte32p))))
    (acl2::logext 32 (ifix x))
    ///
    (fty::deffixequiv s32)
-   (defrule s32-type
+   (acl2::defrule s32-type
      (integerp (s32 x))
      :rule-classes :type-prescription)
-   (defruled s32-when-sbyte32
+   (acl2::defruled s32-when-sbyte32
      (implies (acl2::sbyte32p x)
               (equal (s32 x) x))
      :enable acl2::sbyte32p)))
 
 (acl2::with-arith5-help
- (define s64
+ (acl2::define s64
    ((x integerp))
    :returns (result acl2::sbyte64p
                     :hints (("goal" :in-theory (enable acl2::sbyte64p))))
    (acl2::logext 64 (ifix x))
    ///
    (fty::deffixequiv s64)
-   (defrule s64-type
+   (acl2::defrule s64-type
      (integerp (s64 x))
      :rule-classes :type-prescription)
-   (defruled s64-when-sbyte64
+   (acl2::defruled s64-when-sbyte64
      (implies (acl2::sbyte64p x)
               (equal (s64 x) x))
      :enable acl2::sbyte64p)))
 
-(defruled sbyte32-suff
+(acl2::defruled sbyte32-suff
   (implies (and (integerp x)
                 (<= #fx-1p31 x)
                 (< x #fx1p31))
            (acl2::sbyte32p x))
   :enable acl2::sbyte32p)
 
-(defruled sbyte64-suff
+(acl2::defruled sbyte64-suff
   (implies (and (integerp x)
                 (<= #fx-1p63 x)
                 (< x #fx1p63))
            (acl2::sbyte64p x))
   :enable acl2::sbyte64p)
 
-(defrule sbyte32-fix-type
+(acl2::defrule sbyte32-fix-type
   (integerp (acl2::sbyte32-fix x))
   :rule-classes :type-prescription
   :enable acl2::sbyte32-fix)
 
-(defrule sbyte64-fix-type
+(acl2::defrule sbyte64-fix-type
   (integerp (acl2::sbyte64-fix x))
   :rule-classes :type-prescription
   :enable acl2::sbyte64-fix)
 
-(defrule sbyte32-is-integer
+(acl2::defrule sbyte32-is-integer
   (implies (acl2::sbyte32p x)
            (integerp x)))
 
-(defrule sbyte64-is-integer
+(acl2::defrule sbyte64-is-integer
   (implies (acl2::sbyte64p x)
            (integerp x)))
 
-(define Natural.compareTo
+(acl2::define Natural.compareTo
   ((this natp)
    (y natp))
   :returns (result acl2::sbyte32p)
@@ -85,12 +81,12 @@
    (signum (- this y)))
   ///
   (fty::deffixequiv Natural.compareTo)
-  (defrule Natural.compareTo-linear
+  (acl2::defrule Natural.compareTo-linear
     (and (<= -1 (Natural.compareTo this x))
          (<= (Natural.compareTo this x) 1))
     :rule-classes :linear))
 
-(define Natural.closerTo
+(acl2::define Natural.closerTo
   ((this natp)
    (x natp)
    (y natp))
@@ -102,13 +98,13 @@
    (signum (- (* 2 this) (+ x y))))
   ///
   (fty::deffixequiv Natural.closerTo)
-  (defrule Natural.closerTo-linear
+  (acl2::defrule Natural.closerTo-linear
     (and (<= -1 (Natural.closerTo this x y))
          (<= (Natural.closerTo this x y) 1))
     :rule-classes :linear))
 
 (acl2::with-arith5-help
- (define Natural.valueOfShiftLeft
+ (acl2::define Natural.valueOfShiftLeft
    ((v acl2::sbyte64p)
     (n acl2::sbyte32p))
    :returns (result-or-exception (or (null result-or-exception)
@@ -122,12 +118,12 @@
     (ash unsigned-v n))
    ///
    (fty::deffixequiv Natural.valueOfShiftLeft)
-   (defrule Natural.valueOfShiftLeft-type-noexception
+   (acl2::defrule Natural.valueOfShiftLeft-type-noexception
      (implies (<= 0 (acl2::sbyte32-fix n))
               (natp (Natural.valueOfShiftLeft v n)))
      :rule-classes :type-prescription)
    (acl2::with-arith5-nonlinear-help
-    (defrule Natural.valueOfShiftLeft-when-nonnegative
+    (acl2::defrule Natural.valueOfShiftLeft-when-nonnegative
       (implies (and (<= 0 (acl2::sbyte64-fix v))
                     (<= 0 (acl2::sbyte32-fix n)))
                (equal (Natural.valueOfShiftLeft v n)
@@ -135,43 +131,35 @@
                          (expt 2 (acl2::sbyte32-fix n)))))
      :enable (acl2::sbyte64-fix acl2::sbyte64p)))))
 
+(acl2::with-arith5-help
+ (acl2::define gen-powers
+   ((b integerp)
+    (n natp))
+   :returns (powers acl2::sbyte64-listp)
+   (and (posp n)
+        (append
+         (gen-powers b (1- n))
+         (list (s64 (expt (ifix b) (1- n))))))
+   ///
+   (fty::deffixequiv gen-powers)))
+
+
 (defconst *Powers.MAX_POW_10_EXP* 19)
 
 (defconst *Powers.pow10*
-  (list
-   (expt (D) 0)
-   (expt (D) 1)
-   (expt (D) 2)
-   (expt (D) 3)
-   (expt (D) 4)
-   (expt (D) 5)
-   (expt (D) 6)
-   (expt (D) 7)
-   (expt (D) 8)
-   (expt (D) 9)
-   (expt (D) 10)
-   (expt (D) 11)
-   (expt (D) 12)
-   (expt (D) 13)
-   (expt (D) 14)
-   (expt (D) 15)
-   (expt (D) 16)
-   (expt (D) 17)
-   (expt (D) 18)
-   (- (expt (D) 19) (expt 2 64))))
+  (gen-powers 10 (+ *Powers.MAX_POW_10_EXP* 1)))
 
-(defruled nth-pow10-when-i<=MAX_POW_10_EXP
+(acl2::defruled nth-pow10-when-i<=MAX_POW_10_EXP
   (implies (and (natp i)
                 (< i (len *Powers.pow10*)))
            (equal (nth i *Powers.pow10*)
-                  (s64 (expt (D) (nfix i)))))
-  :enable ((D))
+                  (s64 (expt 10 (nfix i)))))
   :cases ((= i 0) (= i 1) (= i 2) (= i 3) (= i 4)
           (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
           (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
           (= i 15) (= i 16) (= i 17) (= i 18) (= i 19)))
 
-(define Powers.pow10[]
+(acl2::define Powers.pow10[]
   ((i acl2::sbyte32p))
   :returns (result-or-exception (or (null result-or-exception)
                                     (acl2::sbyte64p result-or-exception))
@@ -181,23 +169,22 @@
    (and (natp i) (< i (len *Powers.pow10*)) (nth i *Powers.pow10*)))
   ///
   (fty::deffixequiv Powers.pow10[])
-  (defrule Powers.pow10[]-type
+  (acl2::defrule Powers.pow10[]-type
     (or (null (Powers.pow10[] i))
         (integerp (Powers.pow10[] i)))
     :rule-classes :type-prescription)
-  (defruled Powers.pow10[]-when-i<=MAX_POW_10_EXP
+  (acl2::defruled Powers.pow10[]-when-i<=MAX_POW_10_EXP
     (implies (and (natp i)
                   (<= i *Powers.MAX_POW_10_EXP*))
              (equal (Powers.pow10[] i)
-                    (s64 (expt (D) i))))
+                    (s64 (expt 10 i))))
     :enable acl2::sbyte32p
     :use (:instance nth-pow10-when-i<=MAX_POW_10_EXP))
-  (defruled Powers.pow10[]-when-i<MAX_POW_10_EXP
+  (acl2::defruled Powers.pow10[]-when-i<MAX_POW_10_EXP
     (implies (and (natp i)
                   (< i *Powers.MAX_POW_10_EXP*))
              (equal (Powers.pow10[] i)
-                    (expt (D) i)))
-    :enable ((D))
+                    (expt 10 i)))
     :use (:instance nth-pow10-when-i<=MAX_POW_10_EXP)
     :cases ((= i 0) (= i 1) (= i 2) (= i 3) (= i 4)
             (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
@@ -219,7 +206,7 @@
 ; stub of method DoubleToDecimal.toChars(long f, int e)
 ; returns positive rational instead of String
 ; TODO implement rendering to chars
-(define DoubleToDecimal.toChars
+(acl2::define DoubleToDecimal.toChars
   ((this DoubleToDecimal-p)
    (f acl2::sbyte64p)
    (e acl2::sbyte32p))
@@ -228,14 +215,14 @@
   (acl2::b*
    ((f (acl2::sbyte64-fix f))
     (e (acl2::sbyte32-fix e)))
-   (* f (expt (D) (- e *H*))))
+   (* f (expt 10 (- e *H*))))
   ///
-  (fty::deffixequiv DoubleToDecimal.toChars)
-  (acl2::with-arith5-help
-   (defrule DoubleToDecimal.toChars-type-noexception
-     (implies (< 0 (acl2::sbyte64-fix f))
-              (pos-rationalp (DoubleToDecimal.toChars this f e)))
-     :rule-classes :type-prescription)))
+  (fty::deffixequiv DoubleToDecimal.toChars))
+;  (acl2::with-arith5-help
+;   (acl2::defrule DoubleToDecimal.toChars-type-noexception
+;     (implies (< 0 (acl2::sbyte64-fix f))
+;              (rtl::pos-rationalp (DoubleToDecimal.toChars this f e)))
+;     :rule-classes :type-prescription)))
 #|
 (local
  (acl2::with-arith5-help
@@ -276,7 +263,7 @@
             (acl2::sbyte32p (1- g)))
    :enable acl2::sbyte32p
    ))
-|#
+
 (define v-dp
   ((this DoubleToDecimal-p))
   :returns (v (finite-positive-binary-p v (dp))
@@ -346,7 +333,7 @@
             (equal (+ (expt (D) hi) (!s_i i v f))
                    (!t_i i v f)))
    :enable (!s_i !t_i t_i)))
-
+|#
 #|
 (acl2::with-arith5-help
  (define DoubleToDecimal.fullCaseXS-loop-invariant
@@ -477,15 +464,16 @@
                 (- (!q v (dp))))))
    :enable ((dp))))
 |#
-(acl2::with-arith5-help
- (defrule loop-measure-decreases
-   (implies (and (acl2::sbyte32p g)
-                 (<= 0 g))
-            (< (s32 (+ -1 g)) g))
-   :enable s32))
+(local
+ (acl2::with-arith5-help
+  (acl2::defrule loop-measure-decreases
+    (implies (and (acl2::sbyte32p g)
+                  (<= 0 g))
+             (< (s32 (+ -1 g)) g))
+    :enable s32)))
 
 (acl2::with-arith5-help
- (define DoubleToDecimal.fullCaseXS-loop
+ (acl2::define DoubleToDecimal.fullCaseXS-loop
   ((this DoubleToDecimal-p)
    (g acl2::sbyte32p)
    (sbH acl2::sbyte64p)
@@ -525,7 +513,7 @@
      (let ((cmp (Natural.closerTo vb ubi wbi)))
        (if (or (< cmp 0)
                (and (= cmp 0)
-                    ; di=0 was checneed above
+                    ; di=0 was checked before
                     (= (s64 (logand (s64 (mod sbi di)) 1)) 0)))
            (DoubleToDecimal.toChars this sbi this.e)
          (DoubleToDecimal.toChars this (s64 (+ sbi di)) this.e)))))

@@ -4,6 +4,7 @@
 (in-package "RTL")
 (include-book "section10")
 (include-book "ranges")
+(include-book "models")
 
 (local (include-book "rtl/rel11/support/float" :dir :system))
 ;(local (include-book "std/basic/inductions" :dir :system))
