@@ -8,35 +8,35 @@
 
 ; Coerce x to a signed integer which will fit in n bits.
 (acl2::with-arith5-help
- (acl2::define s32
+ (acl2::define int-fix
    ((x integerp))
    :returns (result acl2::sbyte32p
                     :hints (("goal" :in-theory (enable acl2::sbyte32p))))
    (acl2::logext 32 (ifix x))
    ///
-   (fty::deffixequiv s32)
-   (acl2::defrule s32-type
-     (integerp (s32 x))
+   (fty::deffixequiv int-fix)
+   (acl2::defrule int-fix-type
+     (integerp (int-fix x))
      :rule-classes :type-prescription)
-   (acl2::defruled s32-when-sbyte32
+   (acl2::defruled int-fix-when-sbyte32
      (implies (acl2::sbyte32p x)
-              (equal (s32 x) x))
+              (equal (int-fix x) x))
      :enable acl2::sbyte32p)))
 
 (acl2::with-arith5-help
- (acl2::define s64
+ (acl2::define long-fix
    ((x integerp))
    :returns (result acl2::sbyte64p
                     :hints (("goal" :in-theory (enable acl2::sbyte64p))))
    (acl2::logext 64 (ifix x))
    ///
-   (fty::deffixequiv s64)
-   (acl2::defrule s64-type
-     (integerp (s64 x))
+   (fty::deffixequiv long-fix)
+   (acl2::defrule long-fix-type
+     (integerp (long-fix x))
      :rule-classes :type-prescription)
-   (acl2::defruled s64-when-sbyte64
+   (acl2::defruled long-fix-when-sbyte64
      (implies (acl2::sbyte64p x)
-              (equal (s64 x) x))
+              (equal (long-fix x) x))
      :enable acl2::sbyte64p)))
 
 (acl2::defruled sbyte32-suff
@@ -70,6 +70,57 @@
 (acl2::defrule sbyte64-is-integer
   (implies (acl2::sbyte64p x)
            (integerp x)))
+
+(acl2::defrule sbyte32-is-acl2-numberp
+  (implies (acl2::sbyte32p x)
+           (acl2-numberp x)))
+
+(acl2::defrule sbyte64-is-acl2-numberp
+  (implies (acl2::sbyte64p x)
+           (acl2-numberp x)))
+
+(define ldiv
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result-or-exception (implies result-or-exception ; DivideByZeroError
+                                         (acl2::sbyte64p result-or-exception)))
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (and (not (= y 0)) (long-fix (truncate x y))))
+  ///
+  (fty::deffixequiv ldiv)
+  (defrule sbyte64-ldiv-noexcept
+    (implies (not (= (acl2::sbyte64-fix y) 0))
+             (acl2::sbyte64p (ldiv x y))))
+  (defrule ldiv-type-noexcept
+    (implies (not (= (acl2::sbyte64-fix y) 0))
+             (integerp (ldiv x y)))
+    :rule-classes :type-prescription))
+
+(define lrem
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result-or-exception (implies result-or-exception ; DivideByZeroError
+                                         (acl2::sbyte64p result-or-exception)))
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (and (not (= y 0)) (long-fix (- x (* y (truncate x y))))))
+  ///
+  (fty::deffixequiv lrem)
+  (defrule sbyte64-lrem-noexcept
+    (implies (not (= (acl2::sbyte64-fix y) 0))
+             (acl2::sbyte64p (lrem x y))))
+  (defruled lrem-type-noexcept
+    (implies (not (= (acl2::sbyte64-fix y) 0))
+             (integerp (lrem x y)))
+    :rule-classes :type-prescription)
+  (defruled lrem-type-noexcept-corr
+    (implies (and (acl2::sbyte64p y)
+                  (not (= y 0)))
+             (integerp (lrem x y)))
+    :rule-classes :type-prescription))
 
 (acl2::define Natural.compareTo
   ((this natp)
@@ -139,7 +190,7 @@
    (and (posp n)
         (append
          (gen-powers b (1- n))
-         (list (s64 (expt (ifix b) (1- n))))))
+         (list (long-fix (expt (ifix b) (1- n))))))
    ///
    (fty::deffixequiv gen-powers)))
 
@@ -153,7 +204,7 @@
   (implies (and (natp i)
                 (< i (len *Powers.pow10*)))
            (equal (nth i *Powers.pow10*)
-                  (s64 (expt 10 (nfix i)))))
+                  (long-fix (expt 10 (nfix i)))))
   :cases ((= i 0) (= i 1) (= i 2) (= i 3) (= i 4)
           (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
           (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
@@ -161,8 +212,8 @@
 
 (acl2::define Powers.pow10[]
   ((i acl2::sbyte32p))
-  :returns (result-or-exception (or (null result-or-exception)
-                                    (acl2::sbyte64p result-or-exception))
+  :returns (result-or-exception (implies result-or-exception
+                                         (acl2::sbyte64p result-or-exception))
                                 :hints (("goal" :use nth-pow10-when-i<=MAX_POW_10_EXP)))
   (acl2::b*
    ((i (acl2::sbyte32-fix i)))
@@ -177,7 +228,7 @@
     (implies (and (natp i)
                   (<= i *Powers.MAX_POW_10_EXP*))
              (equal (Powers.pow10[] i)
-                    (s64 (expt 10 i))))
+                    (long-fix (expt 10 i))))
     :enable acl2::sbyte32p
     :use (:instance nth-pow10-when-i<=MAX_POW_10_EXP))
   (acl2::defruled Powers.pow10[]-when-i<MAX_POW_10_EXP
@@ -190,7 +241,6 @@
             (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
             (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
             (= i 15) (= i 16) (= i 17) (= i 18))))
-
 
 (fty::defprod DoubleToDecimal
   ((e acl2::sbyte32p)
@@ -469,8 +519,8 @@
   (acl2::defrule loop-measure-decreases
     (implies (and (acl2::sbyte32p g)
                   (<= 0 g))
-             (< (s32 (+ -1 g)) g))
-    :enable s32)))
+             (< (int-fix (+ -1 g)) g))
+    :enable int-fix)))
 
 (acl2::with-arith5-help
  (acl2::define DoubleToDecimal.fullCaseXS-loop
@@ -497,33 +547,25 @@
     ((unless (>= g 0)) nil) ; AssertionError
     (di (Powers.pow10[] g))
     ((unless di) nil) ; ArrayIndexOutOfBounds
-    ((when (= di 0)) nil) ; DivideByZerorError
-    (sbi (s64 (- sbH (s64 (mod sbH di)))))
+    ((when (= di 0)) nil) ; DivideByZeroError
+    (sbi (long-fix (- sbH (lrem sbH di))))
     (ubi (Natural.valueOfShiftLeft sbi p))
     ((unless ubi) nil)
-    (wbi (Natural.valueOfShiftLeft (s64 (+ sbi di)) p))
+    (wbi (Natural.valueOfShiftLeft (long-fix (+ sbi di)) p))
     ((unless wbi) nil)
-    (uin (<= (s32 (+ (Natural.compareTo vbl ubi) 1)) 0))
-    (win (<= (s32 (+ (Natural.compareTo wbi vbr) 1)) 0))
+    (uin (<= (int-fix (+ (Natural.compareTo vbl ubi) this.lout)) 0))
+    (win (<= (int-fix (+ (Natural.compareTo wbi vbr) this.rout)) 0))
     ((when (and uin (not win)))
      (DoubleToDecimal.toChars this sbi this.e))
     ((when (and (not uin) win))
-     (DoubleToDecimal.toChars this (s64 (+ sbi di)) this.e))
+     (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e))
     ((when uin)
      (let ((cmp (Natural.closerTo vb ubi wbi)))
        (if (or (< cmp 0)
                (and (= cmp 0)
                     ; di=0 was checked before
-                    (= (s64 (logand (s64 (mod sbi di)) 1)) 0)))
+                    (= (long-fix (logand (ldiv sbi di) 1)) 0)))
            (DoubleToDecimal.toChars this sbi this.e)
-         (DoubleToDecimal.toChars this (s64 (+ sbi di)) this.e)))))
+         (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e)))))
    (DoubleToDecimal.fullCaseXS-loop
-    this (s32 (- g 1)) sbH p vb vbl vbr))
-  ))
-
-
-
-
-
-
-
+    this (int-fix (- g 1)) sbH p vb vbl vbr))))
