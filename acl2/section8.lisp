@@ -53,7 +53,7 @@
 ; decimal of length H-1 which is rounded back to v.
 ; It is proved by enumeration of all members of the format.
 
-(defrule result-3-1-incorrect-for-artificalformat
+(defrule result-3-1-incorrect-for-artifical-format
  (let* ((f *format-for-result-3*)
         (i (- (H *format-for-result-3*) 1))
         (dv (algo1 i v f)))

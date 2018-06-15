@@ -79,18 +79,52 @@
   :use algo1-i<=max-from-i-j)
 
 (acl2::with-arith5-help
- (defrule evenp-digitn-f-w_i
+ (defruled evenp-when-evenp-last-digit
+  (implies (integerp i)
+           (equal (evenp (mod i (D)))
+                  (evenp i)))
+  :enable D))
+
+(acl2::with-arith5-help
+ (defruled evenp-digitn-f-u_i
+  (implies (posp i)
+           (equal (evenp (digitn (f (u_i i v)) (- i) (D)))
+                  (evenp (s_i i v))))
+  :enable (f-u_i digitn-def evenp-when-evenp-last-digit)
+  :disable evenp))
+
+(acl2::with-arith5-help
+ (defruled evenp-digitn-f-w_i
+   (implies (and (integerp i)
+                 (<= 2 i))
+            (equal (evenp (digitn (f (w_i i v)) (- i) (D)))
+                   (evenp (t_i i v))))
+   :enable (f-w_i digitn-def evenp-when-evenp-last-digit)
+   :disable evenp
+   :cases ((= (t_i i v) (expt (D) i)))
+   :hints (("subgoal 1" :in-theory (enable w_i f e)))
+   :prep-lemmas
+   ((defrule lemma
+      (implies (posp i)
+               (evenp (expt (D) i)))
+      :enable ((D))
+      :expand (expt 10 i)
+      :disable acl2::normalize-factors-gather-exponents))))
+
+(acl2::with-arith5-help
+ (defruled evenp-digitn-f-w_i-as-digitn-f-u_i
    (implies (and (integerp i)
                  (<= 2 i))
             (equal (evenp (digitn (f (w_i i v)) (- i) (D)))
                    (not (evenp (digitn (f (u_i i v)) (- i) (D))))))
-   :cases ((= (t_i i v) (expt (D) i)))
-   :enable (f e u_i w_i result-1-5 digitn-def ordD-t_i)
+
+   :enable (evenp-digitn-f-u_i
+            evenp-digitn-f-w_i)
    :disable evenp
    :prep-lemmas
    ((defrule lemma
-      (equal (evenp (mod (s_i i v) (D)))
-             (not (evenp (mod (t_i i v) (D)))))
+      (equal (evenp (s_i i v))
+             (not (evenp (t_i i v))))
       :enable t_i))))
 
 ; Previos theorem would be incorrect for i=1
@@ -126,7 +160,8 @@
                        (= (abs (- dv v)) (abs (- d v)))
                        (evenp (digitn (f dv) (- i) (D)))
                        (not (evenp (digitn (f d) (- j) (D))))))))
-   :enable (u_i-linear w_i-linear)
+   :enable (evenp-digitn-f-w_i-as-digitn-f-u_i
+            u_i-linear w_i-linear)
    :disable (evenp abs)
    :use (:instance uninteresting-other-than-u_i-w_i
                    (i j))

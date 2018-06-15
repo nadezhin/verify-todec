@@ -71,7 +71,11 @@
     (and (integerp (* 1/2 (D)))
          (< 1 (* 1/2 (D))))
     :rule-classes :type-prescription)
-  (in-theory (disable (:executable-counterpart D))))
+  (in-theory (disable (:executable-counterpart D)))
+  (acl2::with-arith5-help
+   (defruled expt-D-as-expt-D/2
+     (equal (expt (D) k)
+            (* (expt 2 k) (expt (D/2) k))))))
 
 (defrule expt-D-type
   (pos-rationalp (expt (D) k))

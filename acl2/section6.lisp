@@ -145,7 +145,12 @@
     (defruled u_i-when-has-D-length
       (implies (has-D-length v i)
                (equal (u_i i v) (pos-rational-fix v)))
-      :enable (has-D-length s_i f))))
+      :enable (has-D-length s_i f)))
+   (acl2::with-arith5-help
+    (defruled f-u_i
+      (equal (f (u_i i v))
+             (* (s_i i v) (expt (D) (- (acl2::pos-fix i)))))
+      :enable (f e result-1-5))))
 
 (define w_i
    ((i posp)
@@ -179,7 +184,7 @@
               (equal (ordD (w_i i v))
                      (ordD v)))
      :enable (e result-1-5)
-     :use (:instance ordD-t_i)))
+     :use ordD-t_i))
    (acl2::with-arith5-help
     (defrule has-D-length-w-i
       (has-D-length (w_i i v) i)
@@ -188,7 +193,14 @@
       (("subgoal 2" :use (:instance has-D-length-suff
                                     (r (- (e v) (acl2::pos-fix i)))
                                     (d (t_i i v))))
-       ("subgoal 1" :in-theory (enable has-D-length f e))))))
+       ("subgoal 1" :in-theory (enable has-D-length f e)))))
+   (acl2::with-arith5-help
+    (defruled f-w_i
+      (implies (not (= (t_i i v) (expt (D) (acl2::pos-fix i))))
+               (equal (f (w_i i v))
+                      (* (t_i i v) (expt (D) (- (acl2::pos-fix i))))))
+      :enable (f e result-1-5)
+      :use ordD-t_i)))
 
 (define algo1-measure
   ((i posp)

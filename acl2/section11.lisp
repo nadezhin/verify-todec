@@ -11,102 +11,119 @@
 (local (include-book "rtl/rel11/support/basic" :dir :system))
 (local (include-book "rtl/rel11/support/float" :dir :system))
 (local (include-book "rtl/rel11/support/reps" :dir :system))
-;(local (include-book "std/basic/inductions" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (acl2::with-arith5-help
- (define !s_i
+ (define sbi
   ((i posp)
    (v pos-rationalp)
    (f formatp))
-  :returns (!s_i posp :rule-classes :type-prescription)
+  :returns (sbi posp :rule-classes :type-prescription)
   (let ((i (min (H f) (acl2::pos-fix i))))
     (* (s_i i v) (expt (D) (- (H f) i))))
   ///
-  (fty::deffixequiv !s_i)
+  (fty::deffixequiv sbi)
   (acl2::with-arith5-nonlinear++-help
-   (defruled !s_i-linear
-     (let* ((!s_i (!s_i i v f))
+   (defruled sbi-linear
+     (let* ((sbi (sbi i v f))
             (H (H f)))
        (implies (and (posp i)
                      (<= i H))
-                (and (<= (expt (D) (- H 1)) !s_i)
+                (and (<= (expt (D) (- H 1)) sbi)
                      (< (- (* (f v) (expt (D) H)) (expt (D) (- H i)))
-                        !s_i)
-                     (<= !s_i (* (f v) (expt (D) H)))
-                     (< !s_i (expt (D) H)))))
-     :rule-classes ((:linear :trigger-terms ((!s_i i v f))))
+                        sbi)
+                     (<= sbi (* (f v) (expt (D) H)))
+                     (< sbi (expt (D) H)))))
+     :rule-classes ((:linear :trigger-terms ((sbi i v f))))
      :use s_i-linear))
-  (defrule ordD-!s_i
+  (defrule ordD-sbi
     (implies (and (posp i)
                   (<= i (H f)))
-             (equal (ordD (!s_i i v f)) (H f)))
-    :enable result-1-5)))
+             (equal (ordD (sbi i v f)) (H f)))
+    :enable result-1-5)
+  (defruled sbi*D^{i-H}-as-s_i
+    (implies (and (posp i)
+                  (<= i (H f)))
+             (equal (* (expt (D) (+ (- (H f)) i)) (sbi i v f))
+                       (s_i i v))))))
 
 (acl2::with-arith5-help
- (define !t_i
+ (define tbi
   ((i posp)
    (v pos-rationalp)
    (f formatp))
-  :returns (!t_i posp :rule-classes :type-prescription)
+  :returns (tbi posp :rule-classes :type-prescription)
   (let ((i (min (H f) (acl2::pos-fix i))))
     (* (t_i i v) (expt (D) (- (H f) i))))
   ///
-  (fty::deffixequiv !t_i)
+  (fty::deffixequiv tbi)
   (acl2::with-arith5-nonlinear++-help
-   (defruled !t_i-linear
-     (let* ((!t_i (!t_i i v f))
+   (defruled tbi-linear
+     (let* ((tbi (tbi i v f))
             (H (H f)))
        (implies (and (posp i)
                      (<= i H))
-                (and (< (expt (D) (- H 1)) !t_i)
-                     (< (* (f v) (expt (D) H)) !t_i)
-                     (<= !t_i (expt (D) H)))))
-     :rule-classes ((:linear :trigger-terms ((!t_i i v f))))
+                (and (< (expt (D) (- H 1)) tbi)
+                     (< (* (f v) (expt (D) H)) tbi)
+                     (<= tbi (expt (D) H)))))
+     :rule-classes ((:linear :trigger-terms ((tbi i v f))))
      :use t_i-linear))
-  (defrule ordD-!t_i
+  (defrule ordD-tbi
     (implies (and (posp i)
                   (<= i (H f))
-                  (not (equal (!t_i i v f) (expt (D) (H f)))))
-             (equal (ordD (!t_i i v f)) (H f)))
+                  (not (equal (tbi i v f) (expt (D) (H f)))))
+             (equal (ordD (tbi i v f)) (H f)))
     :use ordD-t_i
     :enable result-1-5)))
 
 (acl2::with-arith5-help
- (defrule !s_i-as-!s_H
+ (defrule s_i-as-s_h
    (let ((H (H f)))
      (implies (and (posp i)
                    (<= i H))
-              (equal (!s_i i v f)
-                     (* (fl (/ (!s_i H v f) (expt (D) (- H i))))
-                        (expt (D) (- H i))))))
+              (equal (s_i i v)
+                     (fl (/ (s_i H v) (expt (D) (- H i)))))))
    :rule-classes ()
-   :enable (!s_i s_i)
+   :enable s_i
    :use (:instance fl/int-rewrite
                    (x (* (f v) (expt (D) (H f))))
                    (n (expt (D) (- (H f) i))))))
 
-(define !q
+(acl2::with-arith5-help
+ (defrule sbi-as-sbH
+   (let ((H (H f)))
+     (implies (and (posp i)
+                   (<= i H))
+              (equal (sbi i v f)
+                     (* (fl (/ (sbi H v f) (expt (D) (- H i))))
+                        (expt (D) (- H i))))))
+   :rule-classes ()
+   :enable (sbi s_i)
+   :use (:instance fl/int-rewrite
+                   (x (* (f v) (expt (D) (H f))))
+                   (n (expt (D) (- (H f) i))))))
+
+(define qb
   ((v pos-rationalp)
    (f formatp))
-  :returns (!q integerp :rule-classes ())
+  :returns (qb integerp :rule-classes ())
   (let ((q (q v f))
         (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
         (- q 1)
       (- q 2)))
   ///
-  (fty::deffixequiv !q)
-  (defrule !q-linear
+  (fty::deffixequiv qb)
+  (defrule qb-linear
     (implies (finite-positive-binary-p v f)
-             (and (<= (1- (Qmin f)) (!q v f))
-                  (<= (!q v f) (1- (Qmax f)))))
+             (and (<= (1- (Qmin f)) (qb v f))
+                  (<= (qb v f) (1- (Qmax f)))))
     :rule-classes :linear
     :enable Qmax-as-Qmin)
   (acl2::with-arith5-help
-   (defruled !q-monotone
+   (defruled qb-monotone
      (implies (<= (pos-rational-fix v1) (pos-rational-fix v2))
-              (<= (!q v1 f) (!q v2 f)))
+              (<= (qb v1 f) (qb v2 f)))
      :use (:instance q-monotone
                      (x v1)
                      (y v2))
@@ -116,76 +133,282 @@
       ("subgoal 1.2" :in-theory (enable c))
       ("subgoal 1.1" :in-theory (enable q c-as-sigc sigc-lower-bound 2^{P-1}))))))
 
-(define !c
+(define cb
   ((v pos-rationalp)
    (f formatp))
-  :returns (!c pos-rationalp :rule-classes ())
+  :returns (cb pos-rationalp :rule-classes ())
   (let ((q (q v f))
         (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
         (* 2 c)
       (* 4 c)))
   ///
-  (fty::deffixequiv !c)
-  (defrule !c-linear
-    (<= (!c v f) (* 4 (2^{P-1} f)))
+  (fty::deffixequiv cb)
+  (defrule cb-linear
+    (<= (cb v f) (* 4 (2^{P-1} f)))
     :rule-classes :linear)
-  (defrule !c-type-when-finite-positive-binary
+  (defrule cb-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
-             (and (integerp (!c v f))
-                  (< 1 (!c v f))))
+             (and (integerp (cb v f))
+                  (< 1 (cb v f))))
     :rule-classes :type-prescription)
   (acl2::with-arith5-help
-   (defrule !c*2^!q-as-v
-     (equal (* (!c v f) (expt 2 (!q v f)))
+   (defruled cb*2^qb-as-v
+     (equal (* (cb v f) (expt 2 (qb v f)))
             (pos-rational-fix v))
-     :enable (!q c))))
+     :enable (qb c))))
 
-(define !cr
+(define cbr
   ((v pos-rationalp)
    (f formatp))
   :returns (!cr pos-rationalp :rule-classes ())
   (let ((q (q v f))
         (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
-        (+ (!c v f) 1)
-      (+ (!c v f) 2)))
+        (+ (cb v f) 1)
+      (+ (cb v f) 2)))
   ///
-  (fty::deffixequiv !cr)
-  (defrule !cr-linear
-    (<= (!cr v f) (+ 2 (* 4 (2^{P-1} f))))
+  (fty::deffixequiv cbr)
+  (defrule cbr-linear
+    (<= (cbr v f) (+ 2 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
-  (defrule !cr-type-when-finite-positive-binary
+  (defrule cbr-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
-             (and (integerp (!cr v f))
-                  (< 1 (!cr v f))))
+             (and (integerp (cbr v f))
+                  (< 1 (cbr v f))))
     :rule-classes :type-prescription)
   (acl2::with-arith5-help
-   (defrule !cr*2^!q-as-vr
-     (equal (* (!cr v f) (expt 2 (!q v f)))
+   (defruled cbr*2^qb-as-vr
+     (equal (* (cbr v f) (expt 2 (qb v f)))
             (vr v f))
-     :enable (!q !c c vr))))
+     :enable (qb cb c vr))))
 
-(define !cl
+(define cbl
   ((v pos-rationalp)
    (f formatp))
-  :returns (!cl rationalp :rule-classes ())
-  (- (!c v f) 1)
+  :returns (cbl rationalp :rule-classes ())
+  (- (cb v f) 1)
   ///
-  (fty::deffixequiv !cl)
-  (defrule !cl-linear
-    (<= (!cl v f) (+ -1 (* 4 (2^{P-1} f))))
+  (fty::deffixequiv cbl)
+  (defrule cbl-linear
+    (<= (cbl v f) (+ -1 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
-  (defrule !cl-type-when-finite-positive-binary
+  (defrule cbl-type-when-finite-positive-binary
     (implies (finite-positive-binary-p v f)
-             (posp (!cl v f)))
+             (posp (cbl v f)))
     :rule-classes :type-prescription)
   (acl2::with-arith5-help
-   (defrule !cl*2^!q-as-vl
-     (equal (* (!cl v f) (expt 2 (!q v f)))
+   (defruled cbl*2^qb-as-vl
+     (equal (* (cbl v f) (expt 2 (qb v f)))
             (vl v f))
-     :enable (!q !c vl-alt))))
+     :enable (qb cb vl-alt))))
 
+(define T_
+  ((v pos-rationalp)
+   (f formatp)
+   (S pos-rationalp))
+  (/ (expt (D) (- (H f) (e v))) (pos-rational-fix S))
+  ///
+  (fty::deffixequiv T_))
+
+(define vb
+  ((v pos-rationalp)
+   (S pos-rationalp))
+  :returns (!vb pos-rationalp :rule-classes ())
+  (* (pos-rational-fix v) (pos-rational-fix S))
+  ///
+  (fty::deffixequiv vb))
+
+(define vbl
+  ((v pos-rationalp)
+   (f formatp)
+   (S pos-rationalp))
+  :returns (vbl rationalp :rule-classes ())
+  (* (vl v f) (pos-rational-fix S))
+  ///
+  (fty::deffixequiv vbl))
+
+(define vbr
+  ((v pos-rationalp)
+   (f formatp)
+   (S pos-rationalp))
+  :returns (!vbr pos-rationalp :rule-classes ())
+  (* (vr v f) (pos-rational-fix S))
+  ///
+  (fty::deffixequiv vbr))
+
+(define ubi
+  ((i posp)
+   (v pos-rationalp)
+   (f formatp)
+   (S pos-rationalp))
+  :returns (!vr pos-rationalp :rule-classes ())
+  (/ (sbi i v f) (T_ v f S))
+  ///
+  (fty::deffixequiv ubi)
+  (defruled ubi-matcher
+    (equal (/ (sbi i v f) (T_ v f S))
+           (ubi i v f S))))
+
+(define wbi
+  ((i posp)
+   (v pos-rationalp)
+   (f formatp)
+   (S pos-rationalp))
+  :returns (!vr pos-rationalp :rule-classes ())
+  (/ (tbi i v f) (T_ v f S))
+  ///
+  (fty::deffixequiv wbi)
+  (defruled wbi-matcher
+    (equal (/ (tbi i v f) (T_ v f S))
+           (wbi i v f S))))
+
+(acl2::with-arith5-help
+ (define S-full
+   ((v pos-rationalp)
+    (f formatp))
+   :returns (S pos-rationalp :rule-classes ())
+   (let* ((e (e v))
+          (H (H f))
+          (qb (qb v f))
+          (pow5 (- H e)))
+     (* (expt 2 (max (- qb) pow5))
+        (expt (D/2) (max 0 pow5))))
+   ///
+   (fty::deffixequiv S-full)
+   (defrule /T_-type-S-full
+     (posp (/ (T_ v f (S-full v f))))
+     :rule-classes :type-prescription
+     :enable (T_ expt-D-as-expt-D/2))
+   (defrule vb-type-S-full
+     (implies (finite-positive-binary-p v f)
+              (posp (vb v (S-full v f))))
+     :rule-classes :type-prescription
+     :enable (vb qb)
+     :use (:instance finite-positive-binary-necc
+                     (x v)))
+   (defrule vbl-type-S-full
+     (implies (finite-positive-binary-p v f)
+              (posp (vbl v f (S-full v f))))
+     :rule-classes :type-prescription
+     :enable (vbl vl-alt qb))
+   (defrule vbr-type-S-full
+     (implies (finite-positive-binary-p v f)
+              (posp (vbr v f (S-full v f))))
+     :rule-classes :type-prescription
+     :enable (vbr vr qb))
+   (defrule ubi-type-S-full
+     (posp (ubi i v f (S-full v f)))
+     :rule-classes :type-prescription
+     :enable (ubi T_  expt-D-as-expt-D/2))
+   (defrule wbi-type-S-full
+     (posp (wbi i v f (S-full v f)))
+     :rule-classes :type-prescription
+     :enable (wbi T_  expt-D-as-expt-D/2))))
+
+(acl2::with-arith5-help
+ (defruled result-7-part-1
+   (let* ((H (H f))
+          (e (e v)))
+     (implies (and (pos-rationalp v)
+                   (< v (MIN_NORMAL f)))
+              (<= e H)))
+   :rule-classes ((:linear :trigger-terms ((e v))))
+   :enable (e H MIN_NORMAL-alt)
+   :use (:instance result-1-4
+                   (x v)
+                   (y (* 2 (2^{P-1} f))))))
+
+(acl2::with-arith5-help
+ (defruled result-7-part-2
+  (let* ((H (H f))
+         (e (e v))
+         (qb (qb v f)))
+    (implies (and (finite-positive-binary-p v f)
+                  (< v (MIN_NORMAL f)))
+             (>= e (+ H qb))))
+  :rule-classes ((:linear :trigger-terms ((e v))))
+  :cases ((not (=  (+ (H f) (qb v f))
+                   (+ -1 (H f) (Qmin f))))
+          (not (=  (+ -1 (H f) (Qmin f))
+                   (+ (ordD (expt 2 (P f))) (Qmin f))))
+          (not (<= (+ (ordD (expt 2 (P f))) (Qmin f))
+                   (+ (ordD (expt 2 (- 1 (Qmin f)))) (Qmin f))))
+          (not (<= (+ (ordD (expt 2 (- 1 (Qmin f)))) (Qmin f))
+                   (ordD (expt 2 (Qmin f)))))
+          (not (=  (ordD (expt 2 (Qmin f)))
+                   (Emin f)))
+          (not (<= (Emin f)
+                   (e v))))
+  :hints
+  (("subgoal 6" :in-theory (enable qb) :use
+    ((:instance c-vs-MIN_NORMAL
+                   (x v))
+     (:instance finite-positive-binary-necc
+                (x v))))
+   ("subgoal 5" :in-theory (enable H 2^{P-1}))
+   ("subgoal 4" :cases ((< (pos-rational-fix (expt 2 (P f)))
+                           (pos-rational-fix (expt 2 (- 1 (Qmin f)))))))
+   ("subgoal 4.2" :in-theory (enable Qmin))
+   ("subgoal 4.1" :in-theory (enable result-1-4))
+   ("subgoal 3" :in-theory (enable e Qmin)
+    :use (:instance lemma
+                    (n (- -2 (Qmin f)))))
+   ("subgoal 2" :in-theory (enable Emin e MIN_VALUE))
+   ("subgoal 1" :use e-range-when-finite-positive-binary))
+  :prep-lemmas
+  ((acl2::with-arith5-nonlinear-help
+    (defruled lemma1
+      (implies (pos-rationalp x)
+               (equal (e (* 2 x))
+                      (if (< (f x) 1/2) (e x) (1+ (e x)))))
+      :enable (f e (D))
+      :use ((:instance result-1-3 (k (e x)))
+            (:instance result-1-3
+                       (x (* 2 x))
+                       (k (1+ (e x))))
+            (:instance result-1-3
+                       (x (* 2 x))
+                       (k (e x))))))
+   (acl2::with-arith5-nonlinear++-help
+    (defruled lemma2
+      (implies (pos-rationalp x)
+               (equal (e (/ x))
+                      (if (= (f x) (/ (D))) (- 2 (e x)) (- 1 (e x)))))
+      :enable (f e (D))
+      :use ((:instance result-1-3 (k (e x)))
+            (:instance result-1-3
+                       (x (/ x))
+                       (k (- 2 (e x))))
+            (:instance result-1-3
+                       (x (/ x))
+                       (k (- 1 (e x)))))))
+   (acl2::with-arith5-nonlinear++-help
+    (defruled lemma3
+      (implies (pos-rationalp x)
+               (equal (e (/ 2 x))
+                      (if (<= (f x) (/ 2 (D))) (- 2 (e x)) (- 1 (e x)))))
+      :enable (f e (D))
+      :use ((:instance result-1-3 (k (e x)))
+            (:instance result-1-3
+                       (x (/ 2 x))
+                       (k (- 2 (e x))))
+            (:instance result-1-3
+                       (x (/ 2 x))
+                       (k (- 1 (e x)))))))
+   (acl2::with-arith5-help
+    (defrule lemma
+      (implies (natp n)
+              (<= (e (expt 2 (+ n 3))) (+ 2 n (e (expt 2 (- -2 n))))))
+     :induct (acl2::dec-induct n)
+     :enable ((D))
+     :hints
+     (("subgoal *1/2" :use (
+       (:instance lemma1 (x (expt 2 (+ n 2))))
+       (:instance lemma2 (x (expt 2 (+ n 2))))
+       (:instance lemma3 (x (expt 2 (+ n 2))))))))))))
+
+#|
 (acl2::with-arith5-help
  (define S
    ((v pos-rationalp)
@@ -193,96 +416,17 @@
    :returns (S pos-rationalp :rule-classes ())
    (let ((e (e v))
          (H (H f))
-         (!q (!q v f)))
+         (qb (qb v f)))
      (if (> e H)
          (expt 2 (- H e)) ; XL or L
-       (if (>= (+ H (- e) !q) 0)
+       (if (>= (+ H (- e) qb) 0)
            (expt (D) (- H e)) ; M
-         (* (expt 2 (- !q)) (expt (D/2) (- H e)))))) ; XS or S
+         (* (expt 2 (- qb)) (expt (D/2) (- H e)))))) ; XS or S
    ///
    (fty::deffixequiv S)))
+|#
 
-(acl2::with-arith5-help
- (define T_
-   ((v pos-rationalp)
-    (f formatp))
-   :returns (T_ pos-rationalp :rule-classes ())
-   (/ (expt (D) (- (H f) (e v))) (S v f))
-   ///
-   (fty::deffixequiv T_)))
 
-(define vb
-  ((v pos-rationalp)
-   (f formatp))
-  :returns (!vb pos-rationalp :rule-classes ())
-  (* (pos-rational-fix v) (S v f))
-  ///
-  (fty::deffixequiv vb))
-
-(define vbl
-  ((v pos-rationalp)
-   (f formatp))
-  :returns (!vbl rationalp :rule-classes ())
-  (* (vl v f) (S v f))
-  ///
-  (fty::deffixequiv vbl))
-
-(define vbr
-  ((v pos-rationalp)
-   (f formatp))
-  :returns (!vbr pos-rationalp :rule-classes ())
-  (* (vr v f) (S v f))
-  ///
-  (fty::deffixequiv vbr))
-
-(define !u_i
-  ((i posp)
-   (v pos-rationalp)
-   (f formatp))
-  :returns (!vr pos-rationalp :rule-classes ())
-  (* (u_i i v) (S v f))
-  ///
-  (fty::deffixequiv !u_i))
-
-(define !w_i
-  ((i posp)
-   (v pos-rationalp)
-   (f formatp))
-  :returns (!vr pos-rationalp :rule-classes ())
-  (* (w_i i v) (S v f))
-  ///
-  (fty::deffixequiv !w_i))
-
-(defruled result-7-part-1-dp
-  (let* ((f (dp))
-         (H (H f))
-         (e (e v)))
-    (implies (and (pos-rationalp v)
-                  (< v (MIN_NORMAL f)))
-             (<= e H)))
-  :enable (e (dp))
-  :use (:instance result-1-4
-                  (x v)
-                  (y (MIN_NORMAL (dp)))))
-
-(defruled result-7-part-2-dp
-  (let* ((f (dp))
-         (H (H f))
-         (e (e v))
-         (!q (!q v f)))
-    (implies (and (finite-positive-binary-p v f)
-                  (< v (MIN_NORMAL f)))
-             (< (+ H (- e) !q) 0)))
-  :enable (e !q (dp))
-  :use ((:instance finite-positive-binary-necc
-                   (x v)
-                   (f (dp)))
-        (:instance c-vs-MIN_NORMAL
-                   (x v)
-                   (f (dp)))
-        (:instance result-1-4
-                   (x (MIN_VALUE (dp)))
-                   (y v))))
 
 (define Pred-case-impossible
   ((v pos-rationalp)
@@ -290,9 +434,9 @@
   :returns (yes booleanp :rule-classes ())
   (let* ((H (H f))
          (e (e v))
-         (!q (!q v f)))
+         (qb (qb v f)))
     (not (and (< (- H e) 0)
-              (< (+ (- H e) !q) 0))))
+              (< (+ (- H e) qb) 0))))
   ///
   (fty::deffixequiv Pred-case-impossible))
 
@@ -303,14 +447,14 @@
    (c-max posp)
    (ord2 integerp)
    (ordD integerp)
-   (!q integerp))
+   (qb integerp))
   :returns (yes booleanp :rule-classes ())
   (declare (ignore q c-min c-max ord2))
   (let* ((H (H f))
          (e (ifix ordD))
-         (!q (ifix !q)))
+         (qb (ifix qb)))
     (not (and (< (- H e) 0)
-              (< (+ (- H e) !q) 0))))
+              (< (+ (- H e) qb) 0))))
   ///
   (fty::deffixequiv check-range-case-impossible)
   (defrule check-range-case-impossible-correct
@@ -321,7 +465,7 @@
               c-max
               (ord2 v)
               (ordD v)
-              (!q v f))
+              (qb v f))
              (Pred-case-impossible v f))
     :enable (Pred-case-impossible e)))
 
@@ -336,7 +480,7 @@
             (fp-range->c-max (car ranges))
             (fp-range->ord2 (car ranges))
             (fp-range->ordD (car ranges))
-            (fp-range->!q (car ranges)))
+            (fp-range->qb (car ranges)))
            (check-ranges-case-impossible (cdr ranges))))
   ///
   (fty::deffixequiv check-ranges-case-impossible))
@@ -363,10 +507,10 @@
    (let* ((f (dp))
           (H (H f))
           (e (e v))
-          (!q (!q v f)))
+          (qb (qb v f)))
      (implies (and (finite-positive-binary-p v f)
                    (< (- H e) 0))
-              (>= (+ (- H e) !q) 0)))
+              (>= (+ (- H e) qb) 0)))
    :enable Pred-case-impossible
    :cases ((check-ranges-case-impossible (ranges-dp)))
    :hints (("subgoal 2" :in-theory (enable ranges-dp))
@@ -407,19 +551,6 @@
    :enable ((D) (dp) acl2::sbyte64p)
    :cases ((<= (expt (D) (- (H (dp)) i)) (expt (D) (H (dp)))))))
 
-(acl2::with-arith5-nonlinear++-help
- (defruled lrem-as-mod
-   (implies (and (acl2::sbyte64p x)
-                 (acl2::sbyte64p y)
-                 (<= 0 x)
-                 (< 0 y))
-            (equal (lrem x y) (mod x y)))
-   :enable (lrem acl2::sbyte64p long-fix-when-sbyte64)
-   :use (:instance mod-bnd-1
-                   (m x)
-                   (n y))
-   :cases ((acl2::sbyte64p (mod x y)))))
-
 (acl2::with-arith5-help
  (defruled lrem-as-crop
    (implies (and (acl2::sbyte64p x)
@@ -429,8 +560,8 @@
             (equal (long-fix (- x (lrem x y)))
                    (* (fl (/ x y)) y)))
    :enable (long-fix-when-sbyte64 acl2::sbyte64p)
-   :use ((:instance lrem-as-mod)
-         (:instance mod-def)
+   :use (lrem-when-nonnegative-args
+         mod-def
          (:instance fl-def (x (/ x y))))))
 
 (defruled Natural.compareTo-as-signum
@@ -469,12 +600,12 @@
         (= this.c (c v f))
         (= this.lout (acl2::bool->bit (oddp this.c)))
         (= this.rout (acl2::bool->bit (oddp this.c)))
-        (< (+ (H f) (- (e v)) (!q v f)) 0)
+        (< (+ (H f) (- (e v)) (qb v f)) 0)
         (>= (- (H f) (e v)) 0)))
   ///
   (defrule precond-v-fwd
     (implies (precond this v)
-             (pos-rationalp v))
+             (finite-positive-binary-p v (dp)))
     :rule-classes :forward-chaining)
   (defrule finite-positive-binary-p-when-precond
     (implies (precond this v)
@@ -487,7 +618,7 @@
              (acl2::sbyte32p (e v))))
   (defruled e-linear-when-precond
     (implies (precond this v)
-             (and (< (+ (H (dp)) (!q v (dp))) (e v))
+             (and (< (+ (H (dp)) (qb v (dp))) (e v))
                   (<= (e v) (H (dp)))))
     :rule-classes ((:linear :trigger-terms ((e v)))))
   (defruled posp-m-when-precond
@@ -496,105 +627,71 @@
     :rule-classes :type-prescription)
   (defrule posp-p-when-precond
     (implies (precond this v)
-             (posp (+ (- (H (dp))) (e v) (- (!q v (dp))))))
+             (posp (+ (- (H (dp))) (e v) (- (qb v (dp))))))
     :rule-classes :type-prescription)
   (defrule sbyte32p-p-when-precond
     (implies (precond this v)
-             (acl2::sbyte32p (+ (- (H (dp))) (e v) (- (!q v (dp))))))
-    :enable (sbyte32-suff !q (dp)))
-  #|
+             (acl2::sbyte32p (+ (- (H (dp))) (e v) (- (qb v (dp))))))
+    :enable (sbyte32-suff qb (dp)))
   (acl2::with-arith5-help
-   (defrule vb-type
-     (implies (precond this v)
-              (posp (vb v (dp))))
-     :rule-classes :type-prescription
-     :enable (finite-positive-binary-p vb S !q)
-     :cases ((posp (c v (dp))))
-     :hints (("subgoal 2" :use (:instance C-TYPE-WHEN-FINITE-POSITIVE-BINARY
-                                          (x v)
-                                          (f (dp)))))))
-|#
+   (defrule /T_-match-when-precond
+     (let ((f (dp)))
+       (implies (precond this v)
+                (equal (expt 2 (+ (- (H f)) (e v) (- (qb v f))))
+                       (/ (T_ v f (S-full v f))))))
+     :enable (T_ S-full expt-D-as-expt-D/2)))
+;  (defrule vbl-type-when-precond
+;    (implies (precond this v)
+;             (posp (vbl v (dp) (S-full v (dp)))))
+;    :rule-classes :type-prescription)
   (acl2::with-arith5-help
-   (defrule vbl-type
-    (implies (precond this v)
-             (posp (vbl v (dp))))
-    :rule-classes :type-prescription
-    :enable (vbl vl-alt S !q)
-    :cases ((posp (c v (dp))))
-    :hints (("subgoal 2" :use (:instance C-TYPE-WHEN-FINITE-POSITIVE-BINARY
-                                         (x v)
-                                         (f (dp)))))))
+   (defrule sbi*2^p-when-precond
+     (let ((f (dp)))
+       (implies (and (precond this v)
+                     (posp i)
+                     (<= i (H f)))
+                (equal (* (sbi i v f)
+                          (expt 2 (+ (- (H f)) (e v) (- (qb v f)))))
+                       (ubi i v f (S-full v f)))))
+     :enable (ubi T_ S-full expt-D-as-expt-D/2)))
   (acl2::with-arith5-help
-   (defrule vbr-type
-    (implies (precond this v)
-             (posp (vbr v (dp))))
-    :rule-classes :type-prescription
-    :enable (vbr vr S !q)
-    :cases ((posp (c v (dp))))
-    :hints (("subgoal 2" :use (:instance C-TYPE-WHEN-FINITE-POSITIVE-BINARY
-                                         (x v)
-                                         (f (dp)))))))
+   (defrule tbi*2^p-when-precond
+     (let ((f (dp)))
+       (implies (and (precond this v)
+                     (posp i)
+                     (<= i (H f)))
+                (equal (* (tbi i v f)
+                          (expt 2 (+ (- (H f)) (e v) (- (qb v f)))))
+                     (wbi i v f (S-full v f)))))
+     :enable (wbi T_ S-full expt-D-as-expt-D/2)))
   (acl2::with-arith5-help
-   (defruled expt-D-as-expt-D/2
-     (equal (expt (D) k)
-            (* (expt 2 k) (expt (D/2) k)))
-     :enable D))
+   (defrule signum-vbl-ubi
+     (implies (and (posp i)
+                   (<= i (H f))
+                   (pos-rationalp S))
+              (equal (signum (- (vbl v f S) (ubi i v f S)))
+                     (signum (- (vl v f) (u_i i v)))))
+     :enable (vbl ubi sbi u_i T_ signum)))
   (acl2::with-arith5-help
-   (defrule !u_i-type
-     (implies (and (precond this v)
-                   (posp i)
-                   (<= i (H (dp))))
-              (posp (!u_i i v (dp))))
-     :rule-classes :type-prescription
-     :enable (!u_i u_i S expt-D-as-expt-D/2)))
+   (defrule signum-wbi-vbr
+     (implies (and (posp i)
+                   (<= i (H f))
+                   (pos-rationalp S))
+              (equal (signum (+ (- (vbr v f S)) (wbi i v f S)))
+                     (signum (+ (- (vr v f)) (w_i i v)))))
+     :enable (vbr wbi tbi w_i T_ signum)))
   (acl2::with-arith5-help
-   (defrule !w_i-type
-     (implies (and (precond this v)
-                   (posp i)
-                   (<= i (H (dp))))
-              (posp (!w_i i v (dp))))
-     :rule-classes :type-prescription
-     :enable (!w_i w_i S expt-D-as-expt-D/2)))
-  (acl2::with-arith5-help
-   (defrule !s_i*2^p-when-precond
-     (implies (and (precond this v)
-                   (posp i)
-                   (<= i (H (dp))))
-              (equal (* (!s_i i v (dp))
-                        (expt 2 (+ (- (H (dp))) (e v) (- (!q v (dp))))))
-                     (!u_i i v (dp))))
-     :enable (!s_i !u_i u_i S expt-D-as-expt-D/2)))
-  (acl2::with-arith5-help
-   (defrule !t_i*2^p-when-precond
-     (implies (and (precond this v)
-                   (posp i)
-                   (<= i (H (dp))))
-              (equal (* (!t_i i v (dp))
-                        (expt 2 (+ (- (H (dp))) (e v) (- (!q v (dp))))))
-                     (!w_i i v (dp))))
-     :enable (!t_i !w_i w_i S expt-D-as-expt-D/2)))
-  (acl2::with-arith5-help
-   (defrule signum-vbl-!u_i
-     (equal (signum (- (vbl v f) (!u_i i v f)))
-            (signum (- (vl v f) (u_i i v))))
-     :enable (vbl !u_i signum)))
-  (acl2::with-arith5-help
-   (defrule signum-!w_i-vbr
-     (equal (signum (+ (- (vbr v f)) (!w_i i v f)))
-            (signum (+ (- (vr v f)) (w_i i v))))
-     :enable (vbr !w_i signum)))
-  (acl2::with-arith5-help
-   (defrule signum-2*vb-!u_i-!w_i
-     (implies (precond this v)
-              (equal (signum (+ (* 2 (vb v (dp))) (- (!u_i i v (dp))) (- (!w_i i v (dp)))))
-                     (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v))))))
-     :enable (vb !u_i !w_i signum)))
-  (acl2::with-arith5-help
-   (defrule signum-!u_i-!w_i
-     (implies (precond this v)
-              (equal (signum (+ (- (!u_i i v (dp))) (- (!w_i i v (dp)))))
-                     (signum (+ (- (u_i i v)) (- (w_i i v))))))
-     :enable (vb !u_i !w_i signum)))
+   (defrule signum-2*vb-ubi-wbi
+     (implies (and (posp i)
+                   (<= i (H f))
+                   (pos-rationalp S))
+              (equal (signum (+ (* 2 (vb v  S))
+                                (- (ubi i v f S))
+                                (- (wbi i v f S))))
+                     (signum (+ (* 2 (pos-rational-fix v))
+                                (- (u_i i v))
+                                (- (w_i i v))))))
+     :enable (vb ubi wbi sbi tbi u_i w_i T_ signum)))
   (defrule signum-vl-u_i-when-precond-and-in-tau-interval
     (implies (precond this v)
              (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
@@ -609,44 +706,39 @@
                         0)
                     (in-tau-intervalp (w_i i v) (Rv v (dp)))))
     :enable (in-tau-intervalp-Rv signum w_i-linear))
-  (defrule compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-    (implies (and (precond this v)
-                  (posp i)
-                  (<= i (H (dp))))
-             (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
-                                    (Natural.compareTo (vbl v (dp))
-                                                       (!u_i i v (dp)))))
-                        0)
-                    (in-tau-intervalp (u_i i v) (Rv v (dp)))))
+  (defrule compareTo-vbl-ubi-when-precond-and-in-tau-interval
+    (let* ((f (dp))
+           (S (S-full v f)))
+      (implies (and (precond this v)
+                    (posp i)
+                    (<= i (H f)))
+               (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
+                                      (Natural.compareTo (vbl v f S)
+                                                         (ubi i v f S))))
+                          0)
+                      (in-tau-intervalp (u_i i v) (Rv v f)))))
     :enable Natural.compareTo-as-signum
+    :use signum-vl-u_i-when-precond-and-in-tau-interval
     :disable precond)
-  (defrule compareTo-vbl-!u_i-when-precond-and-in-tau-interval-corr
-    (implies
-     (and (precond this v)
-          (natp g)
-          (< g (H (dp))))
-     (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
-                            (Natural.compareTo (vbl v (dp))
-                                               (!u_i (- (H (dp)) g) v (dp)))))
-                0)
-            (in-tau-intervalp (u_i (- (H (dp)) g) v) (Rv v (dp)))))
-    :use (:instance compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-                    (i (- (H (dp)) g))))
-  (defrule compareTo-!w_i-vbr-when-precond-and-in-tau-interval
-    (implies (and (precond this v)
-                  (posp i)
-                  (<= i (H (dp))))
-             (equal (<= (int-fix (+ (DoubleToDecimal->rout this)
-                                    (Natural.compareTo (!w_i i v (dp))
-                                                       (vbr v (dp)))))
-                        0)
-                    (in-tau-intervalp (w_i i v) (Rv v (dp)))))
+  (defrule compareTo-wbi-vbr-when-precond-and-in-tau-interval
+    (let* ((f (dp))
+           (S (S-full v f)))
+      (implies (and (precond this v)
+                    (posp i)
+                    (<= i (H f)))
+               (equal (<= (int-fix (+ (DoubleToDecimal->rout this)
+                                      (Natural.compareTo (wbi i v f S)
+                                                         (vbr v f S))))
+                          0)
+                      (in-tau-intervalp (w_i i v) (Rv v f)))))
     :enable Natural.compareTo-as-signum
+    :use signum-w_i-vr-when-precond-and-in-tau-interval
     :disable precond))
-#|
+
 (acl2::with-arith5-help
  (rule
- (let ((f (dp)))
+  (let* ((f (dp))
+         (S (S-full v f)))
    (implies
     (and (finite-positive-binary-p v f)
          (precond this v)
@@ -656,19 +748,27 @@
      (DoubleToDecimal.fullCaseXS-loop
       this
       (- (H f) i)
-      (!s_i (H f) v f)
-      (- (e v) (+ (H f) (!q v f)))
-      (vb v f )
-      (vbl v f)
-      (vbr v f))
+      (sbi (H f) v f)
+      (- (e v) (+ (H f) (qb v f)))
+      (vb v S)
+      (vbl v f S)
+      (vbr v f S))
      (algo1 i v f))))
  :induct (algo1-i i v (dp))
  :enable (DoubleToDecimal.fullCaseXS-loop
+          DoubleToDecimal.toChars-lemma
           int-fix-when-sbyte32
           long-fix-when-sbyte64
           algo1
           algo1-i
-          sbyte32-suff)
+          u_i-linear
+          w_i-linear
+          ubi-matcher
+          wbi-matcher
+          )
+ :disable (compareTo-vbl-ubi-when-precond-and-in-tau-interval
+           compareTo-wbi-vbr-when-precond-and-in-tau-interval
+           evenp abs)
  :prep-lemmas
  ((defrule lemma1
     (implies (and (natp g)
@@ -679,35 +779,35 @@
   (defrule lemma2
     (implies (and (posp i)
                   (<= i (H (dp))))
-             (acl2::sbyte64p (!s_i i v (dp))))
+             (acl2::sbyte64p (sbi i v (dp))))
     :enable ((dp) (D) acl2::sbyte64p)
-    :use (:instance !s_i-linear
+    :use (:instance sbi-linear
                     (f (dp))))
   (defrule lemma2a
     (implies (and (posp i)
                   (<= i (H (dp))))
-             (acl2::sbyte64p (!t_i i v (dp))))
+             (acl2::sbyte64p (tbi i v (dp))))
     :enable ((dp) (D))
-    :use (:instance !t_i-linear
+    :use (:instance tbi-linear
                     (f (dp))))
   (defrule lemma2b
-    (equal (+ 1 (!s_i (H (dp)) v (dp)))
-           (!t_i (H (dp)) v (dp)))
-    :enable (!s_i !t_i t_i))
+    (equal (+ 1 (sbi (H (dp)) v (dp)))
+           (tbi (H (dp)) v (dp)))
+    :enable (sbi tbi t_i))
   (defrule lemma2c
     (implies (and (natp g)
                   (< g (H (dp))))
              (equal (+ (expt (D) g)
-                       (!s_i (- (H (dp)) g) v (dp)))
-                    (!t_i (- (H (dp)) g) v (dp))))
-    :enable (!s_i !t_i t_i))
+                       (sbi (- (H (dp)) g) v (dp)))
+                    (tbi (- (H (dp)) g) v (dp))))
+    :enable (sbi tbi t_i))
   (defrule lemma2d
     (implies (and (posp i)
                   (<= i (H (dp))))
              (equal (+ (expt (D) (- (H (dp)) i))
-                       (!s_i i v (dp)))
-                    (!t_i i v (dp))))
-    :enable (!s_i !t_i t_i))
+                       (sbi i v (dp)))
+                    (tbi i v (dp))))
+    :enable (sbi tbi t_i))
   (acl2::with-arith5-help
    (defrule lemma3
      (equal (lrem x 1) 0)
@@ -722,30 +822,37 @@
    (defrule lemma4
      (implies (and (natp g)
                    (< g (H (dp))))
-              (equal (long-fix (- (!s_i (H (dp)) v (dp))
-                                  (lrem (!s_i (H (dp)) v (dp)) (expt (D) g))))
-                     (!s_i (- (H (dp)) g) v (dp))))
+              (equal (long-fix (- (sbi (H (dp)) v (dp))
+                                  (lrem (sbi (H (dp)) v (dp)) (expt (D) g))))
+                     (sbi (- (H (dp)) g) v (dp))))
      :enable sbyte64p-expt-D-when<H
      :use ((:instance lrem-as-crop
-                      (x (!s_i (H (dp)) v (dp)))
+                      (x (sbi (H (dp)) v (dp)))
                      (y (expt (D) g)))
-           (:instance !s_i-as-!s_H
+           (:instance sbi-as-sbH
                     (i (- (H (dp)) g))
                     (f (dp))))))
+  (defrule lemma4a
+    (implies (and (posp i)
+                  (<= i (H (dp))))
+             (equal (ldiv (sbi i v (dp))
+                          (expt (D) (- (H (dp)) i)))
+                    (s_i i v)))
+    :enable (ldiv-when-nonnegative-args sbi*D^{i-H}-as-s_i))
   (defrule lemma5
     (implies (and (posp i)
                   (<= i (H (dp))))
-             (equal (* (EXPT (D) (+ (- (H (DP))) (E V)))
-                       (!S_I I V (DP)))
+             (equal (* (expt (D) (+ (- (H (dp))) (e v)))
+                       (sbi i v (dp)))
                     (u_i i v)))
-    :enable (!s_i u_i))
+    :enable (sbi u_i))
   (defrule lemma6
     (implies (and (posp i)
                   (<= i (H (dp))))
-             (equal (* (EXPT (D) (+ (- (H (DP))) (E V)))
-                       (!t_I I V (DP)))
+             (equal (* (expt (D) (+ (- (H (dp))) (e v)))
+                       (tbi i v (dp)))
                     (w_i i v)))
-    :enable (!t_i w_i))
+    :enable (tbi w_i))
   (acl2::with-arith5-help
    (defruled dlemma1
      (implies (and (posp from-i)
@@ -756,123 +863,49 @@
      :hints (("subgoal 3" :in-theory (enable dp)))
               :use (:instance sbyte32-suff
                               (x (- (H (dp)) (algo1-i from-i v (dp)))))))
+  (defrule lemma7
+    (implies (and (posp i)
+                  (<= i (H (dp))))
+             (acl2::sbyte32p (+ -1 (H (dp)) (- i))))
+    :enable (dp acl2::sbyte32p)
+                    )
   )
  :hints
 
- (;;("subgoal *1/9" :by lemma-9)
-  ;("subgoal *1/8" :by lemma-8)
-  ;("subgoal *1/7" :by lemma-7)
-  ;("subgoal *1/5" :by lemma-5)
-  ;("subgoal *1/4" :by lemma-4)
-  ;("subgoal *1/3" :by lemma-3)
-  ("subgoal *1/2" :do-not-induct t
+ (("subgoal *1/2" :do-not-induct t
    :expand ((algo1-i i v (dp))
-            (DOUBLETODECIMAL.FULLCASEXS-LOOP THIS (+ (H (DP)) (- I))
-                                       (!S_I (H (DP)) V (DP))
-                                       (+ (- (H (DP))) (E V) (- (!Q V (DP))))
-                                       (VB V (DP))
-                                       (VBL V (DP))
-                                       (VBR V (DP)))))
-  ("subgoal *1/2.84" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.83" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.82" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.81" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         u_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.80" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         u_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.79" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         w_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.78" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         u_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.1077" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         u_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (* 2 V) (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.1076" :in-theory
-   (e/d (DoubleToDecimal.toChars-lemma
-         Natural.closerTo-as-signum
-         u_i-linear w_i-linear)
-        (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-   :expand (SIGNUM (+ (- (U_I I V)) (- (W_I I V))))
-   :use (compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-         compareTo-!w_i-vbr-when-precond-and-in-tau-interval))
-;  ("subgoal *1/2.26" :in-theory (enable (dp)))
-;("subgoal 24.11" :use
-  ; compareTo-vbl-!u_i-when-precond-and-in-tau-interval-corr)
-  ;("subgoal 24.10"); :in-theory (enable algo1 f !s_i u_i))
-  ; ((:instance compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-  ;             (i (H (dp))))
-  ;  (:instance compareTo-!w_i-vbr-when-precond-and-in-tau-interval
-  ;             (i (H (dp))))))
-  ;("subgoal 8.20" :use
-  ; ((:instance compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-  ;             (i (H (dp))))
-  ;  (:instance compareTo-!w_i-vbr-when-precond-and-in-tau-interval
-  ;             (i (H (dp))))))
- ; ("subgoal 8.19" :in-theory (enable algo1
- ;                                    !s_i f
- ;                                    ))
-;   ((:instance compareTo-vbl-!u_i-when-precond-and-in-tau-interval
-;               (i (H (dp))))
-;    (:instance compareTo-!w_i-vbr-when-precond-and-in-tau-interval
-;               (i (H (dp))))))
-;
-;          :use (:instance lemma2
-;                                         (i (H (dp))))))
- )
-)
-
- :do-not-induct t
- )
-|#
+            (DoubleToDecimal.fullCaseXS-loop
+             this
+             (- (H (dp)) i)
+             (sbi (H (dp)) v (dp))
+             (+ (- (H (dp))) (e v) (- (qb v (dp))))
+             (vb v (S-full v (dp)))
+             (vbl v (dp) (S-full v (dp)))
+             (vbr v (dp) (S-full v (dp)))))
+   :use (compareTo-vbl-ubi-when-precond-and-in-tau-interval
+         compareTo-wbi-vbr-when-precond-and-in-tau-interval))
+  ("subgoal *1/2.12" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.11" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.10" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.8" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.7" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.6" :in-theory
+   (enable Natural.closerTo-as-signum evenp-digitn-f-u_i)
+   :expand (evenp (s_i i v)))
+  ("subgoal *1/2.4" :in-theory (enable Natural.closerTo-as-signum abs)
+   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
+  ("subgoal *1/2.3" :in-theory
+   (enable Natural.closerTo-as-signum evenp-digitn-f-u_i)
+   :expand (evenp (s_i i v)))
+  ("subgoal *1/1" :do-not-induct t :cases ((< i (H (dp)))))
+  ("subgoal *1/1.2" :in-theory (disable abs algo1-i)
+   :cases ((= (algo1-i i v (dp)) i)))
+  ("subgoal *1/1.2.1" :in-theory (enable algo1-i))
+  ("subgoal *1/1.1"
+   :use (compareTo-vbl-ubi-when-precond-and-in-tau-interval
+         compareTo-wbi-vbr-when-precond-and-in-tau-interval)))))

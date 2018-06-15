@@ -5,21 +5,21 @@
 (local (include-book "rtl/rel11/support/float" :dir :system))
 (local (acl2::allow-arith5-help))
 
-(define !q
+(define qb
   ((v pos-rationalp)
    (f formatp))
-  :returns (!q integerp :rule-classes ())
+  :returns (qb integerp :rule-classes ())
   (let ((q (q v f))
         (c (c v f)))
     (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
         (- q 1)
       (- q 2)))
   ///
-  (fty::deffixequiv !q)
+  (fty::deffixequiv qb)
   (acl2::with-arith5-help
-   (defruled !q-monotone
+   (defruled qb-monotone
      (implies (<= (pos-rational-fix v1) (pos-rational-fix v2))
-              (<= (!q v1 f) (!q v2 f)))
+              (<= (qb v1 f) (qb v2 f)))
      :use (:instance q-monotone
                      (x v1)
                      (y v2))
@@ -36,7 +36,7 @@
     (c-max posp)
     (ord2 integerp)
     (ordD integerp)
-    (!q integerp)))
+    (qb integerp)))
 
 (acl2::with-arith5-help
  (define valid-fp-range-p
@@ -48,7 +48,7 @@
           (c-max (fp-range->c-max range))
           (ord2 (fp-range->ord2 range))
           (ordD (fp-range->ordD range))
-          (!q (fp-range->!q range))
+          (qb (fp-range->qb range))
           (v-min (* c-min (expt 2 q)))
           (v-max (* c-max (expt 2 q))))
      (and (<= (Qmin f) q)
@@ -60,8 +60,8 @@
           (= (ord2 v-max) ord2)
           (= (ordD v-min) ordD)
           (= (ordD v-max) ordD)
-          (= (!q v-min f) !q)
-          (= (!q v-max f) !q)))
+          (= (qb v-min f) qb)
+          (= (qb v-max f) qb)))
    ///
    (fty::deffixequiv valid-fp-range-p)))
 
@@ -80,7 +80,7 @@
                    (= (c v f) c)
                    (= (ord2 v) (fp-range->ord2 range))
                    (= (ordD v) (fp-range->ordD range))
-                   (= (!q v f) (fp-range->!q range)))))
+                   (= (qb v f) (fp-range->qb range)))))
    :enable valid-fp-range-p
    :hints
    (("subgoal 12" :in-theory (enable Cmax) :use
@@ -103,11 +103,11 @@
                 (f (fp-range->f range))
                 (q (fp-range->q range))))
     ("subgoal 8" :use
-     ((:instance !q-monotone
+     ((:instance qb-monotone
                  (f (fp-range->f range))
                  (v1 (* (fp-range->c-min range) (expt 2 (fp-range->q range))))
                  (v2 (* c (expt 2 (fp-range->q range)))))
-      (:instance !q-monotone
+      (:instance qb-monotone
                  (f (fp-range->f range))
                  (v1 (* c (expt 2 (fp-range->q range))))
                  (v2 (* (fp-range->c-max range) (expt 2 (fp-range->q range)))))))
@@ -140,11 +140,11 @@
                 (f (fp-range->f range))
                 (q (fp-range->q range))))
     ("subgoal 2" :use
-     ((:instance !q-monotone
+     ((:instance qb-monotone
                  (f (fp-range->f range))
                  (v1 (* (fp-range->c-min range) (expt 2 (fp-range->q range))))
                  (v2 (* c (expt 2 (fp-range->q range)))))
-      (:instance !q-monotone
+      (:instance qb-monotone
                  (f (fp-range->f range))
                  (v1 (* c (expt 2 (fp-range->q range))))
                  (v2 (* (fp-range->c-max range) (expt 2 (fp-range->q range)))))))
@@ -169,7 +169,7 @@
                  (<= (c v f) (fp-range->c-max range)))
             (and (= (ord2 v) (fp-range->ord2 range))
                  (= (ordD v) (fp-range->ordD range))
-                 (= (!q v f) (fp-range->!q range))))
+                 (= (qb v f) (fp-range->qb range))))
    :cases ((= v (* (c v f) (expt 2 (q v f)))))
    :hints (("subgoal 2" :use (:instance finite-positive-binary-necc
                                         (x v)))
@@ -217,7 +217,7 @@
       :c-max c-max
       :ord2 (ord2 v)
       :ordD (ordD v)
-      :!q (!q v f)))
+      :qb (qb v f)))
    ///
    (fty::deffixequiv gen-fp-range)))
 
@@ -329,8 +329,8 @@
            (declare (ignore v f))
            t))
 
-  (local (defun check-Pred-on-range (f q c-min c-max ord2 ordD !q)
-           (declare (ignore f q c-min c-max ord2 ordD !q))
+  (local (defun check-Pred-on-range (f q c-min c-max ord2 ordD qb)
+           (declare (ignore f q c-min c-max ord2 ordD qb))
            t))
 
   (defruled check-Pred-on-range-correct
@@ -341,7 +341,7 @@
                    c-min c-max
                    (ord2 v)
                    (ordD v)
-                   (!q v f))
+                   (qb v f))
                   (posp c-min)
                   (posp c-max)
                   (or (= (q v f) (Qmin f)) (<= (2^{P-1} f) c-min))
@@ -361,7 +361,7 @@
             (fp-range->c-max (car ranges))
             (fp-range->ord2 (car ranges))
             (fp-range->ordD (car ranges))
-            (fp-range->!q (car ranges)))
+            (fp-range->qb (car ranges)))
            (check-Pred-on-ranges (cdr ranges))))
   ///
   (fty::deffixequiv check-Pred-on-ranges)
