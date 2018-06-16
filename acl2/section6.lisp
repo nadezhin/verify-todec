@@ -300,7 +300,17 @@
     (in-tau-intervalp (algo1 from-i v f) (Rv v f))
     :enable in-tau-intervalp-algo1-i)
   (defrule has-D-length-algo1
-    (has-D-length (algo1 from-i v f) (algo1-i from-i v f))))
+    (has-D-length (algo1 from-i v f) (algo1-i from-i v f)))
+  (defrule algo1-next-when-not-in-tau-intervalp-u_i-and-w_i
+    (implies (and (not (in-tau-intervalp (u_i i v) (Rv v f)))
+                  (not (in-tau-intervalp (w_i i v) (rv v f)))
+                  (posp i))
+             (equal (algo1 (1+ i) v f)
+                    (algo1 i v f)))
+    :cases ((= (algo1-i i v f) (algo1-i (1+ i) v f)))
+    :hints (("subgoal 2" :in-theory (disable algo1)
+             :expand (algo1-i i v f))
+            ("subgoal 1" :in-theory (enable algo1)))))
 
 (rule ; Example 1
  (let* ((f (dp))

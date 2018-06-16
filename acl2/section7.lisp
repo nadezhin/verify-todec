@@ -87,8 +87,10 @@
 
 (acl2::with-arith5-help
  (defruled evenp-digitn-f-u_i
-  (implies (posp i)
-           (equal (evenp (digitn (f (u_i i v)) (- i) (D)))
+   (implies (and (posp i)
+                 (integerp -i)
+                 (= -i (- i)))
+           (equal (evenp (digitn (f (u_i i v)) -i (D)))
                   (evenp (s_i i v))))
   :enable (f-u_i digitn-def evenp-when-evenp-last-digit)
   :disable evenp))
@@ -96,8 +98,10 @@
 (acl2::with-arith5-help
  (defruled evenp-digitn-f-w_i
    (implies (and (integerp i)
-                 (<= 2 i))
-            (equal (evenp (digitn (f (w_i i v)) (- i) (D)))
+                 (<= 2 i)
+                 (integerp -i)
+                 (= -i (- i)))
+            (equal (evenp (digitn (f (w_i i v)) -i (D)))
                    (evenp (t_i i v))))
    :enable (f-w_i digitn-def evenp-when-evenp-last-digit)
    :disable evenp

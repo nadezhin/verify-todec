@@ -1,3 +1,5 @@
+;; ACL2 models of some Java methods in Rafaello Guilietti's code contribution
+;;
 (in-package "RTL")
 (include-book "ihs/basic-definitions" :dir :system)
 (include-book "kestrel/utilities/fixbytes/instances" :dir :system)
@@ -8,9 +10,9 @@
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
 
-; Coerce x to a signed integer which will fit in n bits.
-(acl2::with-arith5-help
- (define int-fix
+;; primitive types int and long
+
+(acl2::with-arith5-help (define int-fix
    ((x integerp))
    :returns (result acl2::sbyte32p
                     :hints (("goal" :in-theory (enable acl2::sbyte32p))))
@@ -25,8 +27,7 @@
               (equal (int-fix x) x))
      :enable acl2::sbyte32p)))
 
-(acl2::with-arith5-help
- (define long-fix
+(acl2::with-arith5-help (define long-fix
    ((x integerp))
    :returns (result acl2::sbyte64p
                     :hints (("goal" :in-theory (enable acl2::sbyte64p))))
@@ -80,6 +81,8 @@
 (defrule sbyte64-is-acl2-numberp
   (implies (acl2::sbyte64p x)
            (acl2-numberp x)))
+
+;; ACL2 models of some JVM instructions
 
 (define ldiv
   ((x acl2::sbyte64p)
@@ -168,6 +171,48 @@
      :rule-classes :type-prescription
      :use lrem-when-nonnegative-args)))
 
+(define lshl
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte32p))
+  :returns (results acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte32-fix y))
+    (n (acl2::loghead 6 y)))
+   (long-fix (ash x n)))
+  ///
+  (fty::deffixequiv lshl))
+
+
+;; ACL2 models of math.Natural
+;; these models are high level. They do not match actual code.
+
+(acl2::with-arith5-help (define Natural.valueOfShiftLeft
+   ((v acl2::sbyte64p)
+    (n acl2::sbyte32p))
+   :returns (result-or-exception (or (null result-or-exception)
+                                     (natp result-or-exception))
+                                 :rule-classes :type-prescription)
+   (acl2::b*
+    ((v (acl2::sbyte64-fix v))
+     (n (acl2::sbyte32-fix n))
+     ((unless (<= 0 n)) nil)
+     (unsigned-v (acl2::loghead 64 v)))
+    (ash unsigned-v n))
+   ///
+   (fty::deffixequiv Natural.valueOfShiftLeft)
+   (defrule Natural.valueOfShiftLeft-noexception
+     (implies (<= 0 (acl2::sbyte32-fix n))
+              (Natural.valueOfShiftLeft v n)))
+   (acl2::with-arith5-nonlinear-help
+    (defrule Natural.valueOfShiftLeft-when-nonnegative
+      (implies (and (<= 0 (acl2::sbyte64-fix v))
+                    (<= 0 (acl2::sbyte32-fix n)))
+               (equal (Natural.valueOfShiftLeft v n)
+                      (* (acl2::sbyte64-fix v)
+                         (expt 2 (acl2::sbyte32-fix n)))))
+     :enable (acl2::sbyte64-fix acl2::sbyte64p)))))
+
 (define Natural.compareTo
   ((this natp)
    (y natp))
@@ -200,36 +245,87 @@
          (<= (Natural.closerTo this x y) 1))
     :rule-classes :linear))
 
-(acl2::with-arith5-help
- (define Natural.valueOfShiftLeft
-   ((v acl2::sbyte64p)
-    (n acl2::sbyte32p))
-   :returns (result-or-exception (or (null result-or-exception)
-                                     (natp result-or-exception))
-                                 :rule-classes :type-prescription)
-   (acl2::b*
-    ((v (acl2::sbyte64-fix v))
-     (n (acl2::sbyte32-fix n))
-     ((unless (<= 0 n)) nil)
-     (unsigned-v (acl2::loghead 64 v)))
-    (ash unsigned-v n))
-   ///
-   (fty::deffixequiv Natural.valueOfShiftLeft)
-   (defrule Natural.valueOfShiftLeft-type-noexception
-     (implies (<= 0 (acl2::sbyte32-fix n))
-              (natp (Natural.valueOfShiftLeft v n)))
-     :rule-classes :type-prescription)
-   (acl2::with-arith5-nonlinear-help
-    (defrule Natural.valueOfShiftLeft-when-nonnegative
-      (implies (and (<= 0 (acl2::sbyte64-fix v))
-                    (<= 0 (acl2::sbyte32-fix n)))
-               (equal (Natural.valueOfShiftLeft v n)
-                      (* (acl2::sbyte64-fix v)
-                         (expt 2 (acl2::sbyte32-fix n)))))
-     :enable (acl2::sbyte64-fix acl2::sbyte64p)))))
+(define Natural.multiply
+  ((this natp)
+   (y acl2::sbyte64p))
+  :returns (result-or-exception (implies result-or-exception ; ArrayIndexOutOfBounds
+                                         (natp result-or-exception)))
+  (acl2::b*
+   ((this (nfix this))
+    (y (acl2::sbyte64-fix y)))
+   (* this (acl2::loghead 64 y)))
+  ///
+  (fty::deffixequiv Natural.multiply))
 
-(acl2::with-arith5-help
- (define gen-powers
+; The model differs from the actual code.
+; Model raises exception when this < y.
+; Code returns (this - y) mod 2^{32*len}
+(define Natural.subtract
+  ((this natp)
+   (y acl2::sbyte64p))
+  :returns (result-or-exception (implies result-or-exception ; should be AssertionError
+                                         (natp result-or-exception)))
+  (acl2::b*
+   ((this (nfix this))
+    (y (acl2::sbyte64-fix y)))
+   (and (<= y this)
+        (- this y)))
+  ///
+  (fty::deffixequiv Natural.multiply))
+
+; TODO define more carefully when d[q] and d[q + 1] may be out of bounds
+(define Natural.shiftRight
+  ((this natp)
+   (n acl2::sbyte32p))
+  :returns (result-or-exception (implies result-or-exception
+                                         (acl2::sbyte64p result-or-exception)))
+  (acl2::b*
+   ((this (nfix this))
+    (n (acl2::sbyte32-fix n))
+    ((unless (<= 0 n)) nil)) ; ArrayIndexOfBounds exception
+   (long-fix (ash this (- n))))
+  ///
+  (fty::deffixequiv Natural.shiftRight))
+
+(acl2::with-arith5-help (define Natural.addShiftLeft
+   ((this natp)
+    (y natp)
+    (n acl2::sbyte32p))
+   :returns (result natp :rule-classes ())
+   (acl2::b*
+   ((this (nfix this))
+    (y (nfix y))
+    (n (acl2::sbyte32-fix n))
+    (n (acl2::loghead 6 n)))
+   (+ this (ash y n)))
+   ///
+   (fty::deffixequiv Natural.addShiftLeft)))
+
+(define Natural.divide
+  ((this natp)
+   (y natp))
+  :returns (result-or-exception (implies result-or-exception
+                                         (acl2::sbyte64p
+                                          result-or-exception)))
+  (acl2::b*
+   ((this (nfix this))
+    (y (nfix y))
+    ((when (= y 0)) nil)) ; ArrayOutOfBounds
+   (long-fix (fl (/ this y))))
+  ///
+  (fty::deffixequiv Natural.divide))
+
+;; ACL2 models of math.Powers
+
+(defconst *Powers.MAX_POW_5_EXP* 27)
+
+(defconst *Powers.MAX_POW_5* #u7_450_580_596_923_828_125)
+
+(defconst *Powers.MAX_POW_10_EXP* 19)
+
+(defconst *Powers.MAX_POW_5_N_EXP* 340)
+
+(acl2::with-arith5-help (define gen-powers
    ((b integerp)
     (n natp))
    :returns (powers acl2::sbyte64-listp)
@@ -240,8 +336,44 @@
    ///
    (fty::deffixequiv gen-powers)))
 
+(defconst *Powers.pow5*
+  (gen-powers 5 (+ *Powers.MAX_POW_5_EXP* 1)))
 
-(defconst *Powers.MAX_POW_10_EXP* 19)
+(defruled nth-pow5-when-i<=MAX_POW_5_EXP
+  (implies (and (natp i)
+                (< i (len *Powers.pow5*)))
+           (equal (nth i *Powers.pow5*)
+                  (expt 5 i)))
+  :cases ((= i 0) (= i 1) (= i 2) (= i 3) (= i 4)
+          (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
+          (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
+          (= i 15) (= i 16) (= i 17) (= i 18) (= i 19)
+          (= i 20) (= i 21) (= i 22) (= i 23) (= i 24)
+          (= i 25) (= i 26) (= i 27)))
+
+(define Powers.pow5[]
+  ((i acl2::sbyte32p))
+  :returns (result-or-exception (implies result-or-exception
+                                         (acl2::sbyte64p result-or-exception))
+                                :hints (("goal" :use nth-pow5-when-i<=MAX_POW_5_EXP)))
+  (acl2::b*
+   ((i (acl2::sbyte32-fix i)))
+   (and (natp i) (< i (len *Powers.pow5*)) (nth i *Powers.pow5*)))
+  ///
+  (fty::deffixequiv Powers.pow5[])
+  (defrule Powers.pow5[]-type
+    (or (null (Powers.pow5[] i))
+        (natp (Powers.pow5[] i)))
+    :rule-classes :type-prescription
+    :use (:instance nth-pow5-when-i<=MAX_POW_5_EXP
+                    (i (acl2::sbyte32-fix i))))
+  (defruled Powers.pow5[]-when-i<=MAX_POW_5_EXP
+    (implies (and (natp i)
+                  (<= i *Powers.MAX_POW_5_EXP*))
+             (equal (Powers.pow5[] i)
+                    (expt 5 i)))
+    :enable acl2::sbyte32p
+    :use nth-pow5-when-i<=MAX_POW_5_EXP))
 
 (defconst *Powers.pow10*
   (gen-powers 10 (+ *Powers.MAX_POW_10_EXP* 1)))
@@ -250,7 +382,7 @@
   (implies (and (natp i)
                 (< i (len *Powers.pow10*)))
            (equal (nth i *Powers.pow10*)
-                  (long-fix (expt 10 (nfix i)))))
+                  (long-fix (expt 10 i))))
   :cases ((= i 0) (= i 1) (= i 2) (= i 3) (= i 4)
           (= i 5) (= i 6) (= i 7) (= i 8) (= i 9)
           (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
@@ -288,6 +420,23 @@
             (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
             (= i 15) (= i 16) (= i 17) (= i 18))))
 
+(define Powers.pow5
+  ((i acl2::sbyte32p))
+  :returns (result-or-exception (implies result-or-exception
+                                         (acl2::sbyte64p result-or-exception))
+                                :hints (("goal" :use nth-pow10-when-i<=MAX_POW_10_EXP)))
+  (acl2::b*
+   ((i (acl2::sbyte32-fix i)))
+   (and (natp i) (< i (len *Powers.MAX_POW_5_N_EXP*)) (expt 5 i)))
+  ///
+  (fty::deffixequiv Powers.pow5)
+  (defrule Powers.pow5-type
+    (or (null (Powers.pow5 i))
+        (natp (Powers.pow5 i)))
+    :rule-classes :type-prescription))
+
+;; ACL2 models of math.DoubleToDecimal
+
 (fty::defprod DoubleToDecimal
   ((e acl2::sbyte32p)
    (q acl2::sbyte32p)
@@ -323,8 +472,7 @@
              (< (int-fix (+ -1 g)) g))
     :enable int-fix)))
 
-(acl2::with-arith5-help
- (define DoubleToDecimal.fullCaseXS-loop
+(acl2::with-arith5-help (define DoubleToDecimal.fullCaseXS-loop
   ((this DoubleToDecimal-p)
    (g acl2::sbyte32p)
    (sbH acl2::sbyte64p)
@@ -369,4 +517,36 @@
            (DoubleToDecimal.toChars this sbi this.e)
          (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e)))))
    (DoubleToDecimal.fullCaseXS-loop
-    this (int-fix (- g 1)) sbH p vb vbl vbr))))
+    this (int-fix (- g 1)) sbH p vb vbl vbr))
+  ///
+  (fty::deffixequiv DoubleToDecimal.fullCaseXS-loop
+                    :hints (("goal" :in-theory (disable nfix))))))
+
+(define DoubleToDecimal.fullCaseXS
+  ((this DoubleToDecimal-p)
+   (qb acl2::sbyte32p)
+   (cb acl2::sbyte64p)
+   (cb_r acl2::sbyte64p)
+   (i acl2::sbyte32p))
+  :returns (result-or-exception (or (not result-or-exception)
+                                    (rationalp result-or-exception))
+                                :rule-classes :type-prescription)
+  (acl2::b*
+   (((DoubleToDecimal this) this)
+    (qb (acl2::sbyte32-fix qb))
+    (cb (acl2::sbyte64-fix cb))
+    (cb_r (acl2::sbyte64-fix cb_r))
+    (i (acl2::sbyte32-fix i))
+    (m (Powers.pow5 (int-fix (- *H* this.e))))
+    ((unless m) nil)
+    (vb (Natural.multiply m cb))
+    (vbl (Natural.subtract vb m))
+    ((unless vbl) nil)
+    (vbr (Natural.multiply m cb_r))
+    (p (int-fix (- (int-fix (- this.e *H*)) qb)))
+    (sbH (Natural.shiftRight vb p))
+    ((unless sbH) nil))
+   (DoubleToDecimal.fullCaseXS-loop
+    this (int-fix (- *H* i)) sbH p vb vbl vbr))
+  ///
+  (fty::deffixequiv DoubleToDecimal.fullCaseXS))

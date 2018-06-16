@@ -41,11 +41,19 @@
                   (<= i (H f)))
              (equal (ordD (sbi i v f)) (H f)))
     :enable result-1-5)
-  (defruled sbi*D^{i-H}-as-s_i
+  (defruled sbi*D^{-g}-as-s_i
+    (implies (and (posp i)
+                  (integerp -g)
+                  (<= -g 0)
+                  (= (- i -g) (H f)))
+             (equal (* (expt (D) -g) (sbi i v f))
+                    (s_i i v))))
+  (defruled sbi*D^{e-H}-as-u_i
     (implies (and (posp i)
                   (<= i (H f)))
-             (equal (* (expt (D) (+ (- (H f)) i)) (sbi i v f))
-                       (s_i i v))))))
+             (equal (* (expt (D) (+ (- (H f)) (e v))) (sbi i v f))
+                    (u_i i v)))
+    :enable u_i)))
 
 (acl2::with-arith5-help
  (define tbi
@@ -74,7 +82,32 @@
                   (not (equal (tbi i v f) (expt (D) (H f)))))
              (equal (ordD (tbi i v f)) (H f)))
     :use ordD-t_i
-    :enable result-1-5)))
+    :enable result-1-5)
+  (defruled tbi*D^{-g}-as-t_i
+    (implies (and (posp i)
+                  (integerp -g)
+                  (<= -g 0)
+                  (= (- i -g) (H f)))
+             (equal (* (expt (D) -g) (tbi i v f))
+                    (t_i i v))))
+  (defruled tbi*D^{e-H}-as-w_i
+    (implies (and (posp i)
+                  (<= i (H f)))
+             (equal (* (expt (D) (+ (- (H f)) (e v))) (tbi i v f))
+                    (w_i i v)))
+    :enable w_i)
+  (defruled tbi-matcher
+    (implies (and (natp g)
+                  (posp i)
+                  (= (+ i g) (H f)))
+             (equal (+ (expt (D) g)
+                       (sbi i v f))
+                    (tbi (- (H f) g) v f)))
+    :enable (sbi tbi t_i))
+  (defruled tbi-matcher-0
+   (equal (+ 1 (sbi (H f) v f))
+          (tbi (H f) v f))
+   :enable (sbi tbi t_i))))
 
 (acl2::with-arith5-help
  (defrule s_i-as-s_h
@@ -248,7 +281,15 @@
   (fty::deffixequiv ubi)
   (defruled ubi-matcher
     (equal (/ (sbi i v f) (T_ v f S))
-           (ubi i v f S))))
+           (ubi i v f S)))
+  (acl2::with-arith5-help
+   (defruled signum-vbl-ubi
+     (implies (and (posp i)
+                   (<= i (H f))
+                   (pos-rationalp S))
+              (equal (signum (- (vbl v f S) (ubi i v f S)))
+                     (signum (- (vl v f) (u_i i v)))))
+     :enable (vbl ubi sbi u_i T_ signum))))
 
 (define wbi
   ((i posp)
@@ -261,7 +302,28 @@
   (fty::deffixequiv wbi)
   (defruled wbi-matcher
     (equal (/ (tbi i v f) (T_ v f S))
-           (wbi i v f S))))
+           (wbi i v f S)))
+  (acl2::with-arith5-help
+   (defruled signum-wbi-ubr
+     (implies (and (posp i)
+                   (<= i (H f))
+                   (pos-rationalp S))
+              (equal (signum (+ (- (vbr v f S)) (wbi i v f S)))
+                     (signum (+ (- (vr v f)) (w_i i v)))))
+     :enable (vbr wbi tbi w_i T_ signum))))
+
+(acl2::with-arith5-nonlinear-help
+ (defruled signum-2*vb-ubi-wbi
+   (implies (and (posp i)
+                 (<= i (H f))
+                 (pos-rationalp S))
+            (equal (signum (+ (* 2 (vb v S))
+                              (- (ubi i v f S))
+                              (- (wbi i v f S))))
+                   (signum (+ (* 2 (pos-rational-fix v))
+                              (- (u_i i v))
+                              (- (w_i i v))))))
+   :enable (vb ubi wbi sbi tbi u_i w_i T_ signum)))
 
 (acl2::with-arith5-help
  (define S-full
@@ -408,25 +470,7 @@
        (:instance lemma2 (x (expt 2 (+ n 2))))
        (:instance lemma3 (x (expt 2 (+ n 2))))))))))))
 
-#|
-(acl2::with-arith5-help
- (define S
-   ((v pos-rationalp)
-    (f formatp))
-   :returns (S pos-rationalp :rule-classes ())
-   (let ((e (e v))
-         (H (H f))
-         (qb (qb v f)))
-     (if (> e H)
-         (expt 2 (- H e)) ; XL or L
-       (if (>= (+ H (- e) qb) 0)
-           (expt (D) (- H e)) ; M
-         (* (expt 2 (- qb)) (expt (D/2) (- H e)))))) ; XS or S
-   ///
-   (fty::deffixequiv S)))
-|#
-
-
+;; Theorems below are for double format only
 
 (define Pred-case-impossible
   ((v pos-rationalp)
@@ -435,8 +479,8 @@
   (let* ((H (H f))
          (e (e v))
          (qb (qb v f)))
-    (not (and (< (- H e) 0)
-              (< (+ (- H e) qb) 0))))
+    (implies (> e H)
+             (<= e (+ H qb))))
   ///
   (fty::deffixequiv Pred-case-impossible))
 
@@ -453,8 +497,8 @@
   (let* ((H (H f))
          (e (ifix ordD))
          (qb (ifix qb)))
-    (not (and (< (- H e) 0)
-              (< (+ (- H e) qb) 0))))
+    (implies (> e H)
+             (<= e (+ H qb))))
   ///
   (fty::deffixequiv check-range-case-impossible)
   (defrule check-range-case-impossible-correct
@@ -509,47 +553,89 @@
           (e (e v))
           (qb (qb v f)))
      (implies (and (finite-positive-binary-p v f)
-                   (< (- H e) 0))
-              (>= (+ (- H e) qb) 0)))
+                   (> e H))
+              (<= e (+ H qb))))
    :enable Pred-case-impossible
    :cases ((check-ranges-case-impossible (ranges-dp)))
    :hints (("subgoal 2" :in-theory (enable ranges-dp))
            ("subgoal 1" :use (:instance check-ranges-case-impossible-correct
                                         (ranges (ranges-dp))
                                         (f (dp))))))
+
+(defrule sbyte32p-g-dp
+  (implies (and (natp g)
+                (< g (H (dp))))
+           (acl2::sbyte32p g))
+    :enable ((dp)))
+
+(defrule sbyte32p-{g-1}-dp
+  (implies (and (natp g)
+                (< g (H (dp))))
+           (acl2::sbyte32p (1- g)))
+    :enable (sbyte32-suff (dp)))
+
+;(defrule sbyte32-H-i-dp
+;  (implies (and (posp i)
+;                (<= i (H (dp))))
+;           (acl2::sbyte32p (- (H (dp)) i)))
+;  :enable (sbyte32-suff (dp)))
 #|
-(define algo2-loop-body
-
-(define algo2-
-  ((g integerp)
-   (v pos-rationalp)
-   (f formatp))
-  :measure (algo1-measure (- (H f) (nfix g)) v f)
-  :guard (
-  :returns (g natp :rule-classes ())
-  (if (natp g)
-  (let ((i (acl2::pos-fix i)))
-    (if (and (not (in-tau-intervalp (u_i i v) (Rv v f)))
-             (not (in-tau-intervalp (w_i i v) (Rv v f))))
-        (algo1-i (+ i 1) v f)
-      i))
-  ///
-  (fty::deffixequiv algo2-i)
-|#
-
-(defrule sbyte32-H-i
-  (implies (and (posp i)
-                (<= i (H (dp))))
-           (acl2::sbyte32p (- (H (dp)) i)))
-  :enable (sbyte32-suff (dp)))
-
 (acl2::with-arith5-nonlinear-help
- (defrule sbyte64p-D^{H-i}
+ (defrule sbyte64p-D^{H-i}-dp
    (implies (and (posp i)
                  (<= i (H (dp))))
             (acl2::sbyte64p (expt (D) (- (H (dp)) i))))
    :enable ((D) (dp) acl2::sbyte64p)
    :cases ((<= (expt (D) (- (H (dp)) i)) (expt (D) (H (dp)))))))
+|#
+(acl2::with-arith5-help
+ (defruled sbyte64p-D^g-dp
+   (implies (and (natp g)
+                 (<= g (H (dp))))
+            (acl2::sbyte64p (expt (D) g)))
+   :enable ((D) (dp) acl2::sbyte64p)))
+
+(acl2::with-arith5-help
+ (defrule sbyte64p-s_i-dp
+   (implies (and (posp i)
+                 (<= i (H (dp))))
+            (acl2::sbyte64p (s_i i v)))
+   :enable ((D) (dp) s_i-linear sbyte64-suff)))
+
+(defrule sbyte64p-sbi-dp
+  (implies (and (posp i)
+                (<= i (H (dp))))
+           (acl2::sbyte64p (sbi i v (dp))))
+  :enable ((dp) (D) acl2::sbyte64p)
+  :use (:instance sbi-linear
+                  (f (dp))))
+
+(defrule sbyte64p-tbi-dp
+  (implies (and (posp i)
+                (<= i (H (dp))))
+           (acl2::sbyte64p (tbi i v (dp))))
+  :enable ((dp) (D))
+  :use (:instance tbi-linear
+                  (f (dp))))
+
+(defruled logand-s_i-1-as-evenp
+  (implies (acl2::sbyte64p s_i)
+           (equal (equal (long-fix (logand s_i 1)) 0)
+                  (evenp s_i))))
+
+(acl2::with-arith5-help
+ (defruled ldiv-as-s_i
+   (implies (and (posp i)
+                 (natp g)
+                 (= (+ i g) (H (dp))))
+            (equal (ldiv (sbi i v (dp)) (expt (D) g))
+                   (s_i i v)))
+   :enable (ldiv-when-nonnegative-args sbi*D^{-g}-as-s_i sbyte64p-D^g-dp)))
+
+(acl2::with-arith5-help
+ (defrule lrem-1
+   (equal (lrem x 1) 0)
+   :enable lrem))
 
 (acl2::with-arith5-help
  (defruled lrem-as-crop
@@ -563,6 +649,24 @@
    :use (lrem-when-nonnegative-args
          mod-def
          (:instance fl-def (x (/ x y))))))
+
+(acl2::with-arith5-help
+ (defruled lrem-as-sbi-dp
+   (acl2::b*
+    ((f (dp))
+     (H (H f)))
+    (implies (and (natp g)
+                  (< g (H f)))
+             (equal (long-fix (- (sbi H v f)
+                                 (lrem (sbi H v f) (expt (D) g))))
+                    (sbi (- H g) v f))))
+    :enable sbyte64p-D^g-dp
+    :use ((:instance lrem-as-crop
+                     (x (sbi (H (dp)) v (dp)))
+                     (y (expt (D) g)))
+          (:instance sbi-as-sbH
+                     (i (- (H (dp)) g))
+                     (f (dp))))))
 
 (defruled Natural.compareTo-as-signum
   (implies (and (natp this)
@@ -579,6 +683,13 @@
                   (signum (- (* 2 this) (+ x y)))))
   :enable Natural.closerTo)
 
+(defrule Powers.pow10[]-as-expt
+    (implies (and (natp g)
+                  (<= g (H (dp))))
+             (equal (Powers.pow10[] g)
+                    (expt (D) g)))
+    :enable (Powers.pow10[]-when-i<MAX_POW_10_EXP (dp) (D)))
+
 (defruled DoubleToDecimal.toChars-lemma
   (implies (and (acl2::sbyte64p c)
                 (acl2::sbyte32p e))
@@ -586,8 +697,7 @@
                   (* c (expt (D) (- e (H (dp)))))))
   :enable (DoubleToDecimal.toChars (dp) (D)))
 
-
-(define precond
+(define common-precondition
   ((this DoubleToDecimal-p)
    (v pos-rationalp))
   :returns (yes booleanp)
@@ -599,313 +709,235 @@
         (= this.q (q v f))
         (= this.c (c v f))
         (= this.lout (acl2::bool->bit (oddp this.c)))
-        (= this.rout (acl2::bool->bit (oddp this.c)))
-        (< (+ (H f) (- (e v)) (qb v f)) 0)
-        (>= (- (H f) (e v)) 0)))
+        (= this.rout (acl2::bool->bit (oddp this.c)))))
   ///
-  (defrule precond-v-fwd
-    (implies (precond this v)
-             (finite-positive-binary-p v (dp)))
-    :rule-classes :forward-chaining)
-  (defrule finite-positive-binary-p-when-precond
-    (implies (precond this v)
+  (defrule common-precondition-fwd
+    (implies (common-precondition this v)
              (finite-positive-binary-p v (dp))))
-  (defrule this.e-when-precond
-    (implies (precond this v)
-             (equal (DoubleToDecimal->e this) (e v))))
-  (defrule sbyte32p-e-when-precond
-    (implies (precond this v)
-             (acl2::sbyte32p (e v))))
-  (defruled e-linear-when-precond
-    (implies (precond this v)
-             (and (< (+ (H (dp)) (qb v (dp))) (e v))
-                  (<= (e v) (H (dp)))))
-    :rule-classes ((:linear :trigger-terms ((e v)))))
-  (defruled posp-m-when-precond
-    (implies (precond this v)
-             (posp (expt (D/2) (- (H (dp)) (e v)))))
-    :rule-classes :type-prescription)
-  (defrule posp-p-when-precond
-    (implies (precond this v)
-             (posp (+ (- (H (dp))) (e v) (- (qb v (dp))))))
-    :rule-classes :type-prescription)
-  (defrule sbyte32p-p-when-precond
-    (implies (precond this v)
-             (acl2::sbyte32p (+ (- (H (dp))) (e v) (- (qb v (dp))))))
-    :enable (sbyte32-suff qb (dp)))
-  (acl2::with-arith5-help
-   (defrule /T_-match-when-precond
-     (let ((f (dp)))
-       (implies (precond this v)
-                (equal (expt 2 (+ (- (H f)) (e v) (- (qb v f))))
-                       (/ (T_ v f (S-full v f))))))
-     :enable (T_ S-full expt-D-as-expt-D/2)))
-;  (defrule vbl-type-when-precond
-;    (implies (precond this v)
-;             (posp (vbl v (dp) (S-full v (dp)))))
-;    :rule-classes :type-prescription)
-  (acl2::with-arith5-help
-   (defrule sbi*2^p-when-precond
-     (let ((f (dp)))
-       (implies (and (precond this v)
-                     (posp i)
-                     (<= i (H f)))
-                (equal (* (sbi i v f)
-                          (expt 2 (+ (- (H f)) (e v) (- (qb v f)))))
-                       (ubi i v f (S-full v f)))))
-     :enable (ubi T_ S-full expt-D-as-expt-D/2)))
-  (acl2::with-arith5-help
-   (defrule tbi*2^p-when-precond
-     (let ((f (dp)))
-       (implies (and (precond this v)
-                     (posp i)
-                     (<= i (H f)))
-                (equal (* (tbi i v f)
-                          (expt 2 (+ (- (H f)) (e v) (- (qb v f)))))
-                     (wbi i v f (S-full v f)))))
-     :enable (wbi T_ S-full expt-D-as-expt-D/2)))
-  (acl2::with-arith5-help
-   (defrule signum-vbl-ubi
-     (implies (and (posp i)
-                   (<= i (H f))
-                   (pos-rationalp S))
-              (equal (signum (- (vbl v f S) (ubi i v f S)))
-                     (signum (- (vl v f) (u_i i v)))))
-     :enable (vbl ubi sbi u_i T_ signum)))
-  (acl2::with-arith5-help
-   (defrule signum-wbi-vbr
-     (implies (and (posp i)
-                   (<= i (H f))
-                   (pos-rationalp S))
-              (equal (signum (+ (- (vbr v f S)) (wbi i v f S)))
-                     (signum (+ (- (vr v f)) (w_i i v)))))
-     :enable (vbr wbi tbi w_i T_ signum)))
-  (acl2::with-arith5-help
-   (defrule signum-2*vb-ubi-wbi
-     (implies (and (posp i)
-                   (<= i (H f))
-                   (pos-rationalp S))
-              (equal (signum (+ (* 2 (vb v  S))
-                                (- (ubi i v f S))
-                                (- (wbi i v f S))))
-                     (signum (+ (* 2 (pos-rational-fix v))
-                                (- (u_i i v))
-                                (- (w_i i v))))))
-     :enable (vb ubi wbi sbi tbi u_i w_i T_ signum)))
-  (defrule signum-vl-u_i-when-precond-and-in-tau-interval
-    (implies (precond this v)
-             (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
-                                    (signum (- (vl v (dp)) (u_i i v)))))
-                        0)
-                    (in-tau-intervalp (u_i i v) (Rv v (dp)))))
-    :enable (in-tau-intervalp-Rv signum u_i-linear))
-  (defrule signum-w_i-vr-when-precond-and-in-tau-interval
-    (implies (precond this v)
-             (equal (<= (int-fix (+ (DoubleToDecimal->rout this)
-                                    (signum (+ (- (vr v (dp))) (w_i i v)))))
-                        0)
-                    (in-tau-intervalp (w_i i v) (Rv v (dp)))))
-    :enable (in-tau-intervalp-Rv signum w_i-linear))
-  (defrule compareTo-vbl-ubi-when-precond-and-in-tau-interval
-    (let* ((f (dp))
-           (S (S-full v f)))
-      (implies (and (precond this v)
-                    (posp i)
-                    (<= i (H f)))
-               (equal (<= (int-fix (+ (DoubleToDecimal->lout this)
+  (defrule Natural.compareTo-vbl-ubi-S-full-as-u-i-in-tau-intervalp
+    (acl2::b*
+     (((DoubleToDecimal this) this)
+      (f (dp))
+      (S (S-full v f)))
+     (implies (and (common-precondition this v)
+                   (pos-rationalp S)
+                   (posp i)
+                   (<= i (H (dp))))
+              (equal (< 0 (int-fix (+ this.lout
                                       (Natural.compareTo (vbl v f S)
-                                                         (ubi i v f S))))
-                          0)
-                      (in-tau-intervalp (u_i i v) (Rv v f)))))
-    :enable Natural.compareTo-as-signum
-    :use signum-vl-u_i-when-precond-and-in-tau-interval
-    :disable precond)
-  (defrule compareTo-wbi-vbr-when-precond-and-in-tau-interval
-    (let* ((f (dp))
-           (S (S-full v f)))
-      (implies (and (precond this v)
-                    (posp i)
-                    (<= i (H f)))
-               (equal (<= (int-fix (+ (DoubleToDecimal->rout this)
+                                                         (ubi i v f S)))))
+                     (not (in-tau-intervalp (u_i i v) (Rv v f))))))
+    :enable (Natural.compareTo-as-signum
+             in-tau-intervalp-Rv
+             signum-vbl-ubi
+             u_i-linear)
+    :expand (signum (- (vl v (dp)) (u_i i v))))
+  (defrule Natural.compareTo-wbi-vbr-S-full-as-u-i-in-tau-intervalp
+    (acl2::b*
+     (((DoubleToDecimal this) this)
+      (f (dp))
+      (S (S-full v f)))
+     (implies (and (common-precondition this v)
+                   (pos-rationalp S)
+                   (posp i)
+                   (<= i (H (dp))))
+              (equal (< 0 (int-fix (+ this.rout
                                       (Natural.compareTo (wbi i v f S)
-                                                         (vbr v f S))))
-                          0)
-                      (in-tau-intervalp (w_i i v) (Rv v f)))))
-    :enable Natural.compareTo-as-signum
-    :use signum-w_i-vr-when-precond-and-in-tau-interval
-    :disable precond))
+                                                         (vbr v f S)))))
+                     (not (in-tau-intervalp (w_i i v) (Rv v f))))))
+    :enable (Natural.compareTo-as-signum
+             in-tau-intervalp-Rv
+             signum-wbi-ubr
+             w_i-linear)
+    :expand (signum (+ (- (vr v (dp))) (w_i i v))))
+  (acl2::with-arith5-help
+   (defrule Natural.closeTo-vb-ubi-ubu-as-abs
+     (acl2::b*
+      (((DoubleToDecimal this) this)
+       (f (dp))
+       (S (S-full v f)))
+      (implies (and (common-precondition this v)
+                    (pos-rationalp S)
+                    (posp i)
+                    (<= i (H (dp))))
+               (equal (Natural.closerTo (vb v S)
+                                        (ubi i v f S)
+                                        (wbi i v f S))
+                      (signum (+ (* 2 (pos-rational-fix v))
+                                 (- (u_i i v))
+                                 (- (w_i i v)))))))
+     :enable (Natural.closerTo-as-signum
+              signum-2*vb-ubi-wbi
+              u_i-linear w_i-linear)))
+  (defrule DoubleToDecimal.toChars-sbi
+    (acl2::b*
+     (((DoubleToDecimal this) this)
+      (f (dp)))
+     (implies (and (common-precondition this v)
+                   (posp i)
+                   (<= i (H f)))
+              (equal (DoubleToDecimal.toChars this (sbi i v f) this.e)
+                     (u_i i v))))
+    :enable (sbi*D^{e-H}-as-u_i DoubleToDecimal.toChars-lemma))
+  (defrule DoubleToDecimal.toChars-tbi
+    (acl2::b*
+     (((DoubleToDecimal this) this)
+      (f (dp)))
+     (implies (and (common-precondition this v)
+                   (posp i)
+                   (<= i (H f)))
+              (equal (DoubleToDecimal.toChars this (tbi i v f) this.e)
+                     (w_i i v))))
+    :enable (tbi*D^{e-H}-as-w_i DoubleToDecimal.toChars-lemma)))
 
-(acl2::with-arith5-help
- (rule
+(define precondition-fullCaseXS
+  ((v pos-rationalp))
+  :returns (yes booleanp)
+  (acl2::b*
+   ((f (dp))
+    (H (H f))
+    (e (e v)))
+   (and (<= e H)
+        (> e (+ H (qb v f)))))
+  ///
+  (fty::deffixequiv precondition-fullCaseXS)
+  (defrule p-type-fullCaseXS
+    (let ((f (dp)))
+      (implies (precondition-fullCaseXS v)
+               (posp (+ (- (H f)) (e v) (- (qb v f))))))
+    :rule-classes :type-prescription)
+   (defrule sbyte32p-p-fullCaseXS
+     (let ((f (dp)))
+       (implies (precondition-fullCaseXS v)
+                (acl2::sbyte32p (+ (- (H f)) (e v) (- (qb v f))))))
+     :enable (qb (dp) sbyte32-suff))
+   (acl2::with-arith5-help
+    (defrule /T_-match-fullCaseXS
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXS v)
+                 (equal (expt 2 (+ (- (H f)) (e v) (- (qb v f))))
+                        (/ (T_ v f (S-full v f))))))
+      :enable (T_ S-full expt-D-as-expt-D/2))))
+
+
+(defrule DoubleToDecimal.fullCaseXS-loop-correct
   (let* ((f (dp))
+         (H (H f))
          (S (S-full v f)))
    (implies
-    (and (finite-positive-binary-p v f)
-         (precond this v)
-         (posp i)
-         (<= i (H f)))
+    (and (common-precondition this v)
+         (precondition-fullCaseXS v)
+         (natp g)
+         (< g H))
     (equal
      (DoubleToDecimal.fullCaseXS-loop
       this
-      (- (H f) i)
-      (sbi (H f) v f)
-      (- (e v) (+ (H f) (qb v f)))
+      g
+      (sbi H v f)
+      (+ (- H) (e v) (- (qb v f)))
       (vb v S)
       (vbl v f S)
       (vbr v f S))
-     (algo1 i v f))))
- :induct (algo1-i i v (dp))
- :enable (DoubleToDecimal.fullCaseXS-loop
-          DoubleToDecimal.toChars-lemma
-          int-fix-when-sbyte32
-          long-fix-when-sbyte64
-          algo1
-          algo1-i
-          u_i-linear
-          w_i-linear
-          ubi-matcher
-          wbi-matcher
-          )
- :disable (compareTo-vbl-ubi-when-precond-and-in-tau-interval
-           compareTo-wbi-vbr-when-precond-and-in-tau-interval
-           evenp abs)
+     (algo1 (- H g) v f))))
+  :enable (DoubleToDecimal.fullCaseXS-loop
+           lrem-as-sbi-dp tbi-matcher ubi-matcher wbi-matcher
+           u-or-w-in-Rv-when-i>=H)
+ :disable (expt nfix evenp abs)
  :prep-lemmas
- ((defrule lemma1
-    (implies (and (natp g)
-                  (<= g (H (dp))))
-             (equal (Powers.pow10[] g)
-                    (expt (D) g)))
-    :enable (Powers.pow10[]-when-i<MAX_POW_10_EXP (dp) (D)))
-  (defrule lemma2
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (acl2::sbyte64p (sbi i v (dp))))
-    :enable ((dp) (D) acl2::sbyte64p)
-    :use (:instance sbi-linear
-                    (f (dp))))
-  (defrule lemma2a
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (acl2::sbyte64p (tbi i v (dp))))
-    :enable ((dp) (D))
-    :use (:instance tbi-linear
-                    (f (dp))))
-  (defrule lemma2b
-    (equal (+ 1 (sbi (H (dp)) v (dp)))
-           (tbi (H (dp)) v (dp)))
-    :enable (sbi tbi t_i))
-  (defrule lemma2c
-    (implies (and (natp g)
-                  (< g (H (dp))))
-             (equal (+ (expt (D) g)
-                       (sbi (- (H (dp)) g) v (dp)))
-                    (tbi (- (H (dp)) g) v (dp))))
-    :enable (sbi tbi t_i))
-  (defrule lemma2d
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (equal (+ (expt (D) (- (H (dp)) i))
-                       (sbi i v (dp)))
-                    (tbi i v (dp))))
-    :enable (sbi tbi t_i))
+ ((defruled algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+    (implies (or (in-tau-intervalp (u_i i v) (Rv v f))
+                 (in-tau-intervalp (w_i i v) (Rv v f)))
+             (equal (algo1-i i v f) (acl2::pos-fix i)))
+    :enable algo1-i)
+  (acl2::with-arith5-help
+   (defrule lemma1
+     (let* ((ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (in-tau-intervalp ui Rv)
+             (in-tau-intervalp wi Rv)
+             (equal (signum (+ (* 2 (pos-rational-fix v)) (- ui) (- wi))) 1))
+        (equal (algo1 i v f) wi)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+              algo1 signum
+              w_i-linear)))
+  (acl2::with-arith5-help
+   (defrule lemma2
+     (let* ((f (dp))
+            (H (H f))
+            (i (- H g))
+            (ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (in-tau-intervalp ui Rv)
+             (in-tau-intervalp wi Rv)
+             (>= (signum (+ (* 2 (pos-rational-fix v)) (- ui) (- wi))) 0)
+             (not (= (long-fix (logand (ldiv (sbi i v f) (expt (D) g)) 1)) 0))
+             (natp g)
+             (< g H))
+        (equal (algo1 i v f) wi)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+              algo1 signum
+              ldiv-as-s_i
+              evenp-digitn-f-u_i
+              logand-s_i-1-as-evenp
+              u_i-linear w_i-linear)
+     :disable evenp
+     :expand (evenp (s_i (- (H (dp)) g) v))))
   (acl2::with-arith5-help
    (defrule lemma3
-     (equal (lrem x 1) 0)
-     :enable lrem))
-  (acl2::with-arith5-help
-   (defruled sbyte64p-expt-D-when<H
-     (implies (and (natp g)
-                   (<= g (H (dp))))
-              (acl2::sbyte64p (expt (D) g)))
-     :enable ((D) (dp) acl2::sbyte64p)))
+     (let* ((ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (in-tau-intervalp ui Rv)
+             (in-tau-intervalp wi Rv)
+             (< (signum (+ (* 2 (pos-rational-fix v)) (- ui) (- wi))) 0))
+        (equal (algo1 i v f) ui)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+              algo1 signum
+              u_i-linear)))
   (acl2::with-arith5-help
    (defrule lemma4
-     (implies (and (natp g)
-                   (< g (H (dp))))
-              (equal (long-fix (- (sbi (H (dp)) v (dp))
-                                  (lrem (sbi (H (dp)) v (dp)) (expt (D) g))))
-                     (sbi (- (H (dp)) g) v (dp))))
-     :enable sbyte64p-expt-D-when<H
-     :use ((:instance lrem-as-crop
-                      (x (sbi (H (dp)) v (dp)))
-                     (y (expt (D) g)))
-           (:instance sbi-as-sbH
-                    (i (- (H (dp)) g))
-                    (f (dp))))))
-  (defrule lemma4a
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (equal (ldiv (sbi i v (dp))
-                          (expt (D) (- (H (dp)) i)))
-                    (s_i i v)))
-    :enable (ldiv-when-nonnegative-args sbi*D^{i-H}-as-s_i))
-  (defrule lemma5
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (equal (* (expt (D) (+ (- (H (dp))) (e v)))
-                       (sbi i v (dp)))
-                    (u_i i v)))
-    :enable (sbi u_i))
-  (defrule lemma6
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (equal (* (expt (D) (+ (- (H (dp))) (e v)))
-                       (tbi i v (dp)))
-                    (w_i i v)))
-    :enable (tbi w_i))
-  (acl2::with-arith5-help
-   (defruled dlemma1
-     (implies (and (posp from-i)
-                   (<= (acl2::pos-fix from-i) (H (dp))))
-              (acl2::sbyte32p (- (H (dp)) (algo1-i from-i v (dp)))))
-     :cases ((not (<= 0 (- (H (dp)) (algo1-i from-i v (dp)))))
-             (not (<= (- (H (dp)) (algo1-i from-i v (dp))) (H (dp)))))
-     :hints (("subgoal 3" :in-theory (enable dp)))
-              :use (:instance sbyte32-suff
-                              (x (- (H (dp)) (algo1-i from-i v (dp)))))))
-  (defrule lemma7
-    (implies (and (posp i)
-                  (<= i (H (dp))))
-             (acl2::sbyte32p (+ -1 (H (dp)) (- i))))
-    :enable (dp acl2::sbyte32p)
-                    )
-  )
- :hints
-
- (("subgoal *1/2" :do-not-induct t
-   :expand ((algo1-i i v (dp))
-            (DoubleToDecimal.fullCaseXS-loop
-             this
-             (- (H (dp)) i)
-             (sbi (H (dp)) v (dp))
-             (+ (- (H (dp))) (e v) (- (qb v (dp))))
-             (vb v (S-full v (dp)))
-             (vbl v (dp) (S-full v (dp)))
-             (vbr v (dp) (S-full v (dp)))))
-   :use (compareTo-vbl-ubi-when-precond-and-in-tau-interval
-         compareTo-wbi-vbr-when-precond-and-in-tau-interval))
-  ("subgoal *1/2.12" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.11" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.10" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.8" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.7" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.6" :in-theory
-   (enable Natural.closerTo-as-signum evenp-digitn-f-u_i)
-   :expand (evenp (s_i i v)))
-  ("subgoal *1/2.4" :in-theory (enable Natural.closerTo-as-signum abs)
-   :expand (signum (+ (* 2 v) (- (u_i i v)) (- (w_i i v)))))
-  ("subgoal *1/2.3" :in-theory
-   (enable Natural.closerTo-as-signum evenp-digitn-f-u_i)
-   :expand (evenp (s_i i v)))
-  ("subgoal *1/1" :do-not-induct t :cases ((< i (H (dp)))))
-  ("subgoal *1/1.2" :in-theory (disable abs algo1-i)
-   :cases ((= (algo1-i i v (dp)) i)))
-  ("subgoal *1/1.2.1" :in-theory (enable algo1-i))
-  ("subgoal *1/1.1"
-   :use (compareTo-vbl-ubi-when-precond-and-in-tau-interval
-         compareTo-wbi-vbr-when-precond-and-in-tau-interval)))))
+     (let* ((f (dp))
+            (H (H f))
+            (i (- H g))
+            (ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (in-tau-intervalp ui Rv)
+             (in-tau-intervalp wi Rv)
+             (= (signum (+ (* 2 (pos-rational-fix v)) (- ui) (- wi))) 0)
+             (= (long-fix (logand (ldiv (sbi i v f) (expt (D) g)) 1)) 0)
+             (natp g)
+             (< g H))
+        (equal (algo1 i v f) ui)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+              algo1 signum
+              ldiv-as-s_i
+              evenp-digitn-f-u_i
+              logand-s_i-1-as-evenp
+              u_i-linear w_i-linear)
+     :disable evenp
+     :expand (evenp (s_i (- (H (dp)) g) v))))
+   (defrule lemma5
+     (let* ((ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (not (in-tau-intervalp ui Rv))
+             (in-tau-intervalp wi Rv))
+        (equal (algo1 i v f) wi)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp algo1))
+   (defrule lemma6
+     (let* ((ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f)))
+       (implies
+        (and (in-tau-intervalp ui Rv)
+             (not (in-tau-intervalp wi Rv)))
+        (equal (algo1 i v f) ui)))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp algo1))))

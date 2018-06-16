@@ -225,6 +225,19 @@
       (< (w_i (H f) v) (+ (wid-Rv v f) (u_i (H f) v)))
       :enable (lemma1 w_i-as-u_i)))))
 
+(defruled u-or-w-in-Rv-when-i>=H
+  (let ((u (u_i i v))
+        (w (w_i i v))
+        (Rv (Rv v f)))
+    (implies (>= (acl2::pos-fix i) (H f))
+             (and (implies (not (in-tau-intervalp u Rv))
+                           (in-tau-intervalp w Rv))
+                  (implies (not (in-tau-intervalp w Rv))
+                           (in-tau-intervalp u Rv)))))
+  :cases ((= (algo1-i i v f) (acl2::pos-fix i)))
+  :hints (("subgoal 2" :use (:instance algo1-i<=max-from-i-H
+                                       (from-i i)))
+          ("subgoal 1" :expand (algo1-i i v f))))
 
 ; Second part of result 3
 (defrule result-3-2
