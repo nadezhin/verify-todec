@@ -2,7 +2,6 @@
 (include-book "section6")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
-(local (include-book "rtl/rel11/support/bits" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (defruled ordD-between-u_i-w_i
@@ -62,7 +61,7 @@
                 (has-D-length d j))
            (<= (algo1-i from-i v f) (max (acl2::pos-fix from-i)
                                          (acl2::pos-fix j))))
- :enable (in-tau-intervalp-i<=j<<algo1-i
+ :enable (in-tau-intervalp-i<=j<algo1-i
           algo1-i has-D-length-monotone)
  :use (:instance uninteresting-other-than-u_i-w_i
                  (d (pos-rational-fix d))
@@ -78,42 +77,6 @@
            (not (has-D-length d j)))
   :use algo1-i<=max-from-i-j)
 
-(acl2::with-arith5-help
- (defruled evenp-when-evenp-last-digit
-  (implies (integerp i)
-           (equal (evenp (mod i (D)))
-                  (evenp i)))
-  :enable D))
-
-(acl2::with-arith5-help
- (defruled evenp-digitn-f-u_i
-   (implies (and (posp i)
-                 (integerp -i)
-                 (= -i (- i)))
-           (equal (evenp (digitn (f (u_i i v)) -i (D)))
-                  (evenp (s_i i v))))
-  :enable (f-u_i digitn-def evenp-when-evenp-last-digit)
-  :disable evenp))
-
-(acl2::with-arith5-help
- (defruled evenp-digitn-f-w_i
-   (implies (and (integerp i)
-                 (<= 2 i)
-                 (integerp -i)
-                 (= -i (- i)))
-            (equal (evenp (digitn (f (w_i i v)) -i (D)))
-                   (evenp (t_i i v))))
-   :enable (f-w_i digitn-def evenp-when-evenp-last-digit)
-   :disable evenp
-   :cases ((= (t_i i v) (expt (D) i)))
-   :hints (("subgoal 1" :in-theory (enable w_i f e)))
-   :prep-lemmas
-   ((defrule lemma
-      (implies (posp i)
-               (evenp (expt (D) i)))
-      :enable ((D))
-      :expand (expt 10 i)
-      :disable acl2::normalize-factors-gather-exponents))))
 
 (acl2::with-arith5-help
  (defruled evenp-digitn-f-w_i-as-digitn-f-u_i
@@ -170,6 +133,6 @@
    :use (:instance uninteresting-other-than-u_i-w_i
                    (i j))
    :cases ((= j (algo1-i from-i v f)))
-   :hints (("subgoal 2" :use (:instance in-tau-intervalp-i<=j<<algo1-i
+   :hints (("subgoal 2" :use (:instance in-tau-intervalp-i<=j<algo1-i
                                         (i from-i)))
            ("subgoal 1" :in-theory (enable algo1 abs))))

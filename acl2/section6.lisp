@@ -2,6 +2,7 @@
 (include-book "section5")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
+(local (include-book "rtl/rel11/support/bits" :dir :system))
 (local (acl2::allow-arith5-help))
 
 (acl2::with-arith5-help
@@ -110,6 +111,14 @@
                      (x (t_i i v))
                      (k (acl2::pos-fix i))))))
 
+(local
+ (acl2::with-arith5-help
+  (defruled evenp-when-evenp-last-digit
+    (implies (integerp i)
+             (equal (evenp (mod i (D)))
+                    (evenp i)))
+    :enable D)))
+
 (define u_i
    ((i posp)
     (v pos-rationalp))
@@ -150,7 +159,14 @@
     (defruled f-u_i
       (equal (f (u_i i v))
              (* (s_i i v) (expt (D) (- (acl2::pos-fix i)))))
-      :enable (f e result-1-5))))
+      :enable (f e result-1-5)))
+   (acl2::with-arith5-help
+    (defruled evenp-digitn-f-u_i
+      (implies (= -i (- (acl2::pos-fix i)))
+               (equal (evenp (digitn (f (u_i i v)) -i (D)))
+                      (evenp (s_i i v))))
+      :enable (f-u_i digitn-def evenp-when-evenp-last-digit)
+      :disable (evenp u_i))))
 
 (define w_i
    ((i posp)
@@ -200,7 +216,26 @@
                (equal (f (w_i i v))
                       (* (t_i i v) (expt (D) (- (acl2::pos-fix i))))))
       :enable (f e result-1-5)
-      :use ordD-t_i)))
+      :use ordD-t_i))
+    (acl2::with-arith5-help
+     (defruled evenp-digitn-f-w_i
+       (implies (= -i (- (acl2::pos-fix i)))
+                (equal (evenp (digitn (f (w_i i v)) -i (D)))
+                       (and (evenp (t_i i v))
+                            (or (< 1 (acl2::pos-fix i))
+                                (not (= (t_i i v) (D)))))))
+       :enable (f-w_i digitn-def evenp-when-evenp-last-digit)
+       :disable (evenp w_i)
+       :cases ((= (t_i i v) (expt (D) (acl2::pos-fix i))))
+       :hints (("subgoal 1" :in-theory (enable w_i f e)))
+       :prep-lemmas
+       ((defrule lemma
+          (implies (posp i)
+                   (evenp (expt (D) i)))
+          :enable ((D))
+          :expand (expt 10 i)
+          :disable acl2::normalize-factors-gather-exponents)))))
+
 
 (define algo1-measure
   ((i posp)
@@ -258,7 +293,7 @@
                     (in-tau-intervalp (w_i i v) (Rv v f)))
            (implies (not (in-tau-intervalp (w_i i v) (Rv v f)))
                     (in-tau-intervalp (u_i i v) (Rv v f))))))
-  (defruled in-tau-intervalp-i<=j<<algo1-i
+  (defruled in-tau-intervalp-i<=j<algo1-i
     (implies (and (<= (acl2::pos-fix i) (acl2::pos-fix j))
                   (< (acl2::pos-fix j) (algo1-i i v f)))
              (and (not (in-tau-intervalp (u_i j v) (Rv v f)))
@@ -267,7 +302,11 @@
     :disable acl2::pos-equiv
     :hints (("subgoal *1/1" :use (:instance acl2::pos-equiv$inline
                                             (x j)
-                                            (y i))))))
+                                            (y i)))))
+  (defruled algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+    (implies (or (in-tau-intervalp (u_i i v) (Rv v f))
+                 (in-tau-intervalp (w_i i v) (Rv v f)))
+             (equal (algo1-i i v f) (acl2::pos-fix i)))))
 
 (define algo1
   ((from-i posp)
@@ -310,7 +349,27 @@
     :cases ((= (algo1-i i v f) (algo1-i (1+ i) v f)))
     :hints (("subgoal 2" :in-theory (disable algo1)
              :expand (algo1-i i v f))
-            ("subgoal 1" :in-theory (enable algo1)))))
+            ("subgoal 1" :in-theory (enable algo1))))
+  (acl2::with-arith5-help
+   (defruled algo1-when-in-tau-intervalp-u_i-or-w_i
+     (let* ((ui (u_i i v))
+            (wi (w_i i v))
+            (Rv (Rv v f))
+            (signum (signum (+ (* 2 (pos-rational-fix v)) (- ui) (- wi)))))
+       (implies (and (or (in-tau-intervalp ui Rv)
+                         (in-tau-intervalp wi Rv)))
+                (equal (algo1 i v f)
+                       (cond
+                        ((not (in-tau-intervalp wi Rv)) ui)
+                        ((not (in-tau-intervalp ui Rv)) wi)
+                        ((< signum 0) ui)
+                        ((> signum 0) wi)
+                        ((evenp (s_i i v)) ui)
+                        (t wi)))))
+     :enable (algo1-i-when-u_i-or-w_i-in-tau-intrvalp
+              algo1 signum u_i-linear w_i-linear)
+     :use (:instance evenp-digitn-f-u_i
+                     (-i (- (acl2::pos-fix i)))))))
 
 (rule ; Example 1
  (let* ((f (dp))
@@ -321,3 +380,4 @@
     (= (algo1-i from-i v f) 3)
     (= (algo1 from-i v f) #f0.0811)))
  :enable ((dp)))
+

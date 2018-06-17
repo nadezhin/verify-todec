@@ -255,23 +255,34 @@
     (y (acl2::sbyte64-fix y)))
    (* this (acl2::loghead 64 y)))
   ///
-  (fty::deffixequiv Natural.multiply))
+  (fty::deffixequiv Natural.multiply)
+  (acl2::with-arith5-help
+   (defrule Natural.multiply-when-nonnegative
+     (implies (<= 0 (acl2::sbyte64-fix y))
+              (equal (Natural.multiply this y)
+                     (* (nfix this)
+                        (acl2::sbyte64-fix y))))
+     :enable (acl2::sbyte64-fix acl2::sbyte64p))))
 
 ; The model differs from the actual code.
 ; Model raises exception when this < y.
 ; Code returns (this - y) mod 2^{32*len}
 (define Natural.subtract
   ((this natp)
-   (y acl2::sbyte64p))
+   (y natp))
   :returns (result-or-exception (implies result-or-exception ; should be AssertionError
                                          (natp result-or-exception)))
   (acl2::b*
    ((this (nfix this))
-    (y (acl2::sbyte64-fix y)))
+    (y (nfix y)))
    (and (<= y this)
         (- this y)))
   ///
-  (fty::deffixequiv Natural.multiply))
+  (fty::deffixequiv Natural.multiply)
+  (defrule Natural.subtract-when-this>=y
+    (implies (<= (nfix y) (nfix this))
+             (equal (Natural.subtract this y)
+                    (- (nfix this) (nfix y))))))
 
 ; TODO define more carefully when d[q] and d[q + 1] may be out of bounds
 (define Natural.shiftRight
@@ -285,7 +296,14 @@
     ((unless (<= 0 n)) nil)) ; ArrayIndexOfBounds exception
    (long-fix (ash this (- n))))
   ///
-  (fty::deffixequiv Natural.shiftRight))
+  (fty::deffixequiv Natural.shiftRight)
+  (defrule Natural.shiftRight-when-nonnegative
+    (implies (<= 0 (acl2::sbyte32-fix n))
+             (equal (Natural.shiftRight this n)
+                    (let* ((this (nfix this))
+                           (n (acl2::sbyte32-fix n)))
+                      (long-fix (fl (* this (expt 2 (- n))))))))
+    :enable fl))
 
 (acl2::with-arith5-help (define Natural.addShiftLeft
    ((this natp)
@@ -420,20 +438,22 @@
             (= i 10) (= i 11) (= i 12) (= i 13) (= i 14)
             (= i 15) (= i 16) (= i 17) (= i 18))))
 
-(define Powers.pow5
-  ((i acl2::sbyte32p))
-  :returns (result-or-exception (implies result-or-exception
-                                         (acl2::sbyte64p result-or-exception))
-                                :hints (("goal" :use nth-pow10-when-i<=MAX_POW_10_EXP)))
-  (acl2::b*
-   ((i (acl2::sbyte32-fix i)))
-   (and (natp i) (< i (len *Powers.MAX_POW_5_N_EXP*)) (expt 5 i)))
-  ///
-  (fty::deffixequiv Powers.pow5)
-  (defrule Powers.pow5-type
-    (or (null (Powers.pow5 i))
-        (natp (Powers.pow5 i)))
-    :rule-classes :type-prescription))
+(acl2::with-arith5-help
+ (define Powers.pow5
+   ((i acl2::sbyte32p))
+   :returns (result-or-exception (or (null result-or-exception)
+                                     (natp result-or-exception))
+                                 :rule-classes :type-prescription
+                                 :hints (("goal" :use nth-pow10-when-i<=MAX_POW_10_EXP)))
+   (acl2::b*
+    ((i (acl2::sbyte32-fix i)))
+    (and (natp i) (<= i *Powers.MAX_POW_5_N_EXP*) (expt 5 i)))
+   ///
+   (fty::deffixequiv Powers.pow5)
+   (defrule Powers.pow5-type
+     (or (null (Powers.pow5 i))
+         (natp (Powers.pow5 i)))
+     :rule-classes :type-prescription)))
 
 ;; ACL2 models of math.DoubleToDecimal
 
