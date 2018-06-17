@@ -67,18 +67,19 @@
   (fty::deffixequiv Emax))
 
 (defruled e-range-when-finite-positive-binary
-  (implies (finite-positive-binary-p v f)
+  (implies (finite-positive-binary-p (pos-rational-fix v) f)
            (and (<= (Emin f) (e v))
                 (<= (e v) (Emax f))))
   :rule-classes ((:linear :trigger-terms ((e v))))
   :enable (e Emin Emax)
   :use ((:instance result-1-4
                    (x (MIN_VALUE f))
-                   (y v))
+                   (y (pos-rational-fix v)))
         (:instance result-1-4
-                   (x v)
+                   (x (pos-rational-fix v))
                    (y (MAX_VALUE f)))
-        finite-positive-binary-range))
+        (:instance finite-positive-binary-range
+                   (v (pos-rational-fix v)))))
 
 ; Use result-2 statement as definition in proof script
 (define has-D-length

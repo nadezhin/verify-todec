@@ -60,8 +60,8 @@
                   (c2 127)))
 
 (defrule starting-length-when-normal
-  (implies (and (finite-positive-binary-p v f)
-                (>= v (MIN_NORMAL f)))
+  (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                (>= (pos-rational-fix v) (MIN_NORMAL f)))
            (equal (starting-length (c v f)) (max (G f) 2)))
   :enable (starting-length-alt G 2^{P-1} ord2)
   :use ((:instance expe-unique

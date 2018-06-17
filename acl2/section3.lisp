@@ -381,23 +381,26 @@
                       (n (1- (P f))))))))))
 
 (defrule q-linear-when-finite-positive-binary
-  (implies (finite-positive-binary-p x f)
+  (implies (finite-positive-binary-p (pos-rational-fix x) f)
            (<= (q x f) (Qmax f)))
   :rule-classes :linear
-  :use finite-positive-binary-necc)
+  :use (:instance finite-positive-binary-necc
+                  (x (pos-rational-fix x))))
 
 (defrule c-type-when-finite-positive-binary
-  (implies (finite-positive-binary-p x f)
+  (implies (finite-positive-binary-p (pos-rational-fix x) f)
            (posp (c x f)))
   :rule-classes :type-prescription
-  :use finite-positive-binary-necc)
+  :use (:instance finite-positive-binary-necc
+                  (x (pos-rational-fix x))))
 
 (defrule c-linear-when-finite-positive-binary
-  (implies (finite-positive-binary-p x f)
+  (implies (finite-positive-binary-p (pos-rational-fix x) f)
            (<= (c x f) (Cmax f)))
   :rule-classes :linear
   :enable Cmax
-  :use finite-positive-binary-necc)
+  :use (:instance finite-positive-binary-necc
+                  (x (pos-rational-fix x))))
 
 (acl2::with-arith5-help
  (defrule finite-positive-binary-range

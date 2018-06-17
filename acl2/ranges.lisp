@@ -163,16 +163,16 @@
  (defruled valid-fp-range-necc-alt
    (implies (and (valid-fp-range-p range)
                  (equal f (fp-range->f range))
-                 (finite-positive-binary-p v f)
+                 (finite-positive-binary-p (pos-rational-fix v) f)
                  (= (q v f) (fp-range->q range))
                  (<= (fp-range->c-min range) (c v f))
                  (<= (c v f) (fp-range->c-max range)))
             (and (= (ord2 v) (fp-range->ord2 range))
                  (= (ordD v) (fp-range->ordD range))
                  (= (qb v f) (fp-range->qb range))))
-   :cases ((= v (* (c v f) (expt 2 (q v f)))))
+   :cases ((= (pos-rational-fix v) (* (c v f) (expt 2 (q v f)))))
    :hints (("subgoal 2" :use (:instance finite-positive-binary-necc
-                                        (x v)))
+                                        (x (pos-rational-fix v))))
            ("subgoal 1" :use (:instance valid-fp-range-necc
                                         (c (c v f)))))))
 
@@ -382,6 +382,8 @@
        ((and (= (q v f) (fp-range->q (car ranges)))
              (>= (c v f) (fp-range->c-min (car ranges))))))
       ("subgoal *1/1.2" :cases ((consp (cdr ranges))))
+      ("subgoal *1/1.2.2.1" :use (:instance finite-positive-binary-necc
+                                            (x v)))
       ("subgoal *1/1.2.1" :cases
        ((and (= (fp-range->q (car ranges))
                 (fp-range->q (cadr ranges)))
@@ -391,10 +393,9 @@
              (= (fp-range->q (car ranges))
                 (1+ (fp-range->q (cadr ranges))))
              (= (fp-range->c-min (car ranges)) (2^{P-1} f))
-             (= (fp-range->c-max (cadr ranges)) (CMax f)))))
-      ("subgoal *1/1.2.1.1" :use (:instance finite-positive-binary-necc
-                                            (x v)))
-
+             (= (fp-range->c-max (cadr ranges)) (CMax f))))
+       :use (:instance finite-positive-binary-necc
+                       (x v)))
       ("subgoal *1/1.1" :in-theory (enable valid-fp-range-p) :use
        ((:instance check-Pred-on-range-correct
                    (f (fp-range->f (car ranges)))

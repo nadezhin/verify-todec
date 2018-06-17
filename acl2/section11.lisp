@@ -148,7 +148,7 @@
   ///
   (fty::deffixequiv qb)
   (defrule qb-linear
-    (implies (finite-positive-binary-p v f)
+    (implies (finite-positive-binary-p (pos-rational-fix v) f)
              (and (<= (1- (Qmin f)) (qb v f))
                   (<= (qb v f) (1- (Qmax f)))))
     :rule-classes :linear
@@ -181,7 +181,7 @@
     (<= (cb v f) (* 4 (2^{P-1} f)))
     :rule-classes :linear)
   (defrule cb-type-when-finite-positive-binary
-    (implies (finite-positive-binary-p v f)
+    (implies (finite-positive-binary-p (pos-rational-fix v) f)
              (and (integerp (cb v f))
                   (< 1 (cb v f))))
     :rule-classes :type-prescription)
@@ -206,7 +206,7 @@
     (<= (cbr v f) (+ 2 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
   (defrule cbr-type-when-finite-positive-binary
-    (implies (finite-positive-binary-p v f)
+    (implies (finite-positive-binary-p (pos-rational-fix v) f)
              (and (integerp (cbr v f))
                   (< 1 (cbr v f))))
     :rule-classes :type-prescription)
@@ -227,7 +227,7 @@
     (<= (cbl v f) (+ -1 (* 4 (2^{P-1} f))))
     :rule-classes :linear)
   (defrule cbl-type-when-finite-positive-binary
-    (implies (finite-positive-binary-p v f)
+    (implies (finite-positive-binary-p (pos-rational-fix v) f)
              (posp (cbl v f)))
     :rule-classes :type-prescription)
   (acl2::with-arith5-help
@@ -286,8 +286,10 @@
   ///
   (fty::deffixequiv ubi)
   (defruled ubi-matcher
-    (equal (/ (sbi i v f) (T_ v f S))
-           (ubi i v f S)))
+    (and (equal (/ (sbi i v f) (T_ v f S))
+                (ubi i v f S))
+         (equal (* (/ (T_ v f S)) (sbi i v f))
+                (ubi i v f S))))
   (acl2::with-arith5-help
    (defruled signum-vbl-ubi
      (implies (and (posp i)
@@ -352,19 +354,19 @@
      (posp (* (S-full v f) (expt 2 (qb v f))))
      :rule-classes :type-prescription)
    (defrule vb-type-S-full
-     (implies (finite-positive-binary-p v f)
+     (implies (finite-positive-binary-p (pos-rational-fix v) f)
               (posp (vb v (S-full v f))))
      :rule-classes :type-prescription
      :enable (vb qb)
      :use (:instance finite-positive-binary-necc
-                     (x v)))
+                     (x (pos-rational-fix v))))
    (defrule vbl-type-S-full
-     (implies (finite-positive-binary-p v f)
+     (implies (finite-positive-binary-p (pos-rational-fix v) f)
               (posp (vbl v f (S-full v f))))
      :rule-classes :type-prescription
      :enable (vbl vl-alt qb))
    (defrule vbr-type-S-full
-     (implies (finite-positive-binary-p v f)
+     (implies (finite-positive-binary-p (pos-rational-fix v) f)
               (posp (vbr v f (S-full v f))))
      :rule-classes :type-prescription
      :enable (vbr vr qb))
@@ -393,7 +395,7 @@
       :enable (vbl vl-alt vb qb c)
       :disable S-full))
    (defrule vbl-guard
-     (implies (finite-positive-binary-p v f)
+     (implies (finite-positive-binary-p (pos-rational-fix v) f)
               (<= (* (S-full v f) (expt 2 (qb v f))) (vb v (S-full v f))))
      :rule-classes :linear
      :enable (vb)
@@ -404,8 +406,7 @@
                       (pos-rational-fix v))))
      :hints (("subgoal 2" :in-theory (enable qb))
              ("subgoal 1" :use (:instance finite-positive-binary-necc
-                                          (x v)))))
-   ))
+                                          (x (pos-rational-fix v))))))))
 
 (acl2::with-arith5-help
  (defruled result-7-part-1
@@ -425,7 +426,8 @@
   (let* ((H (H f))
          (e (e v))
          (qb (qb v f)))
-    (implies (and (finite-positive-binary-p v f)
+    (implies (and (pos-rationalp v)
+                  (finite-positive-binary-p v f)
                   (< v (MIN_NORMAL f)))
              (>= e (+ H qb))))
   :rule-classes ((:linear :trigger-terms ((e v))))
@@ -571,7 +573,7 @@
 (defrule check-ranges-case-impossible-correct
   (implies (and (valid-fp-ranges-p ranges f)
                 (check-ranges-case-impossible ranges)
-                (finite-positive-binary-p v f)
+                (finite-positive-binary-p (pos-rational-fix v) f)
                 (consp ranges)
                 (or (< (q v f) (fp-range->q (car ranges)))
                     (and (= (q v f) (fp-range->q (car ranges)))
@@ -584,14 +586,16 @@
      check-Pred-on-ranges-correct
      (Pred Pred-case-impossible)
      (check-Pred-on-range check-range-case-impossible)
-     (check-Pred-on-ranges check-ranges-case-impossible))))
+     (check-Pred-on-ranges check-ranges-case-impossible))
+    (v (pos-rational-fix v))))
 
 (defrule case-impossible
    (let* ((f (dp))
           (H (H f))
           (e (e v))
           (qb (qb v f)))
-     (implies (and (finite-positive-binary-p v f)
+     (implies (and (pos-rationalp v)
+                   (finite-positive-binary-p v f)
                    (> e H))
               (<= e (+ H qb))))
    :enable Pred-case-impossible
@@ -618,7 +622,7 @@
   :enable (acl2::sbyte32p (dp)))
 
 (defruled {e-H}-matcher-dp
-  (implies (finite-positive-binary-p v (dp))
+  (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
            (equal (int-fix (+ (- *H*) (e v)))
                   (+ (- (H (dp))) (e v))))
   :enable (e-range-when-finite-positive-binary acl2::sbyte32p (dp)))
@@ -658,17 +662,17 @@
    :enable ((D) (dp) s_i-linear sbyte64-suff)))
 
 (defrule sbyte32p-qb-dp
-   (implies (finite-positive-binary-p v (dp))
+   (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
             (acl2::sbyte32p (qb v (dp))))
    :enable (acl2::sbyte32p qb (dp)))
 
 (defrule sbyte64p-cb-dp
-  (implies (finite-positive-binary-p v (dp))
+  (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
            (acl2::sbyte64p (cb v (dp))))
   :enable (acl2::sbyte64p (dp)))
 
 (defrule sbyte64p-cbr-dp
-  (implies (finite-positive-binary-p v (dp))
+  (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
            (acl2::sbyte64p (cbr v (dp))))
   :enable (acl2::sbyte64p (dp)))
 
@@ -785,16 +789,17 @@
   (acl2::b*
    (((DoubleToDecimal this) this)
     (f (dp)))
-   (and (finite-positive-binary-p v f)
+   (and (finite-positive-binary-p (pos-rational-fix v) f)
         (= this.e (e v))
         (= this.q (q v f))
         (= this.c (c v f))
         (= this.lout (acl2::bool->bit (oddp this.c)))
         (= this.rout (acl2::bool->bit (oddp this.c)))))
   ///
-  (defrule common-precondition-fwd
+  (fty::deffixequiv common-precondition)
+  (defrule common-precondtion-fwd
     (implies (common-precondition this v)
-             (finite-positive-binary-p v (dp)))
+             (finite-positive-binary-p (pos-rational-fix v) (dp)))
     :rule-classes :forward-chaining)
   (defrule this.e-common-precondition
     (acl2::b*
@@ -814,10 +819,12 @@
                                       (Natural.compareTo (vbl v f S)
                                                          (ubi i v f S)))))
                      (not (in-tau-intervalp (u_i i v) (Rv v f))))))
-    :enable (Natural.compareTo-as-signum
-             in-tau-intervalp-Rv
+    :enable (in-tau-intervalp-Rv
              signum-vbl-ubi
              u_i-linear)
+    :use (:instance Natural.compareTo-as-signum
+                    (this (vbl v (dp) (S-full v (dp))))
+                    (y (ubi i v (dp) (S-full v (dp)))))
     :expand (signum (- (vl v (dp)) (u_i i v))))
   (defrule Natural.compareTo-wbi-vbr-S-full-as-u-i-in-tau-intervalp
     (acl2::b*
@@ -886,7 +893,7 @@
   (fty::deffixequiv precondition-fullCaseXS)
   (acl2::with-arith5-help
    (defrule m-fullCaseXS
-     (implies (and (finite-positive-binary-p v (dp))
+     (implies (and (finite-positive-binary-p (pos-rational-fix v) (dp))
                    (precondition-fullCaseXS v))
               (equal (Powers.pow5 (int-fix (- *H* (e v))))
                      (expt (D/2) (- (H (dp)) (e v)))))
@@ -928,17 +935,17 @@
   (let* ((f (dp))
          (H (H f))
          (S (S-full v f))
-         (sbH (sbi H v f))
-         (p (+ (- H) (e v) (- (qb v f))))
          (vb (vb v S))
          (vbl (vbl v f S))
-         (vbr (vbr v f S)))
+         (vbr (vbr v f S))
+         (p (+ (- H) (e v) (- (qb v f))))
+         (sbH (sbi H v f)))
    (implies
     (and (common-precondition this v)
          (precondition-fullCaseXS v)
          (natp g)
          (< g H))
-    (equal (DoubleToDecimal.fullCaseXS-loop this g sbH p vb vbl vbr)
+    (equal (DoubleToDecimal.fullCaseXS-loop this vb vbl vbr p sbH g)
            (algo1 (- H g) v f))))
   :enable (DoubleToDecimal.fullCaseXS-loop
            algo1-when-in-tau-intervalp-u_i-or-w_i
@@ -970,3 +977,102 @@
            {H-i}-matcher-dp
            {e-H}-matcher-dp
            acl2::|(- (- x))|))
+
+(define precondition-fullCaseXL
+  ((v pos-rationalp))
+  :returns (yes booleanp)
+  (acl2::b*
+   ((f (dp))
+    (H (H f))
+    (e (e v)))
+   (and (<= e (+ H (qb v f)))
+        (> e H)))
+  ///
+  (fty::deffixequiv precondition-fullCaseXL)
+  (acl2::with-arith5-help
+   (defrule m-fullCaseXL
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                     (precondition-fullCaseXL v))
+                (equal (Powers.pow5 (int-fix (- (e v) *H*)))
+                       (expt (D/2) (+ (- (H f)) (e v))))))
+     :enable (e-range-when-finite-positive-binary
+              Powers.pow5 (dp) (D/2) sbyte32-suff)))
+  (acl2::with-arith5-help
+   (defrule {E-i}-fullCaseXS
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                     (precondition-fullCaseXL v)
+                     (natp g)
+                     (< g (H f)))
+                (equal (Powers.pow5 (int-fix (+ (- (H f)) g (e v))))
+                       (expt (D/2) (+ (- (H f)) g (e v))))))
+     :enable (e-range-when-finite-positive-binary
+              Powers.pow5 (dp) (D/2) sbyte32-suff)))
+  (defrule p-type-fullCaseXL
+    (let ((f (dp)))
+      (implies (precondition-fullCaseXL v)
+               (natp (+ (H f) (- (e v)) (qb v f)))))
+    :rule-classes :type-prescription)
+   (defrule sbyte32p-p-fullCaseXL
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) (dp))
+                     (precondition-fullCaseXL v))
+                (acl2::sbyte32p (+ (H f) (- (e v)) (qb v f)))))
+     :enable (qb (dp) sbyte32-suff))
+   (acl2::with-arith5-help
+    (defruled T_-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt (D/2) (+ (H f) (- (e v))))
+                        (T_ v f (S-full v f)))))
+      :enable (T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
+    (defruled /T_-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt (D/2) (+ (- (H f)) (e v)))
+                        (/ (T_ v f (S-full v f))))))
+      :enable (T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
+    (defrule S*2^qb-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt 2 (+ (H f) (- (e v)) (qb v f)))
+                        (* (S-full v f) (expt 2 (qb v f))))))
+      :enable S-full)))
+
+#|
+(defrule DoubleToDecimal.fullCaseXL-loop-correct
+  (let* ((f (dp))
+         (H (H f))
+         (S (S-full v f))
+         (qb (qb v f))
+         (vb (vb v S))
+         (vbl (vbl v f S))
+         (vbr (vbr v f S))
+         (m (expt (D/2) (+ (- (H f)) (e v))))
+         (sbH (sbi H v f)))
+   (implies
+    (and (common-precondition this v)
+         (precondition-fullCaseXL v)
+         (natp g)
+         (< g H))
+    (equal (DoubleToDecimal.fullCaseXL-loop this qb vb vbl vbr m sbH g)
+           (algo1 (- H g) v f))))
+  :enable (DoubleToDecimal.fullCaseXL-loop
+           algo1-when-in-tau-intervalp-u_i-or-w_i
+           lrem-as-sbi-dp logand-ldiv-sbi-as-evenp-s_i
+           /T_-match-fullCaseXL
+           {e-H}-matcher-dp
+           tbi-matcher ubi-matcher wbi-matcher
+           u-or-w-in-Rv-when-i>=H)
+  :disable (expt nfix evenp abs)
+  :prep-lemmas
+  ((defrule lemma
+     (equal (NFIX (/ (T_ V (DP) (S-FULL V (DP)))))
+            (/ (T_ V (DP) (S-FULL V (DP))))
+            ))
+   )
+  )
+|#

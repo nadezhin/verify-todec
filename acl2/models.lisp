@@ -309,7 +309,7 @@
    ((this natp)
     (y natp)
     (n acl2::sbyte32p))
-   :returns (result natp :rule-classes ())
+   :returns (result natp :rule-classes :type-prescription)
    (acl2::b*
    ((this (nfix this))
     (y (nfix y))
@@ -468,6 +468,8 @@
 
 (defconst *H* 17)
 
+(defconst *G* 15)
+
 ; stub of method DoubleToDecimal.toChars(long f, int e)
 ; returns positive rational instead of String
 ; TODO implement rendering to chars
@@ -492,26 +494,27 @@
              (< (int-fix (+ -1 g)) g))
     :enable int-fix)))
 
-(acl2::with-arith5-help (define DoubleToDecimal.fullCaseXS-loop
+(acl2::with-arith5-help
+ (define DoubleToDecimal.fullCaseXS-loop
   ((this DoubleToDecimal-p)
-   (g acl2::sbyte32p)
-   (sbH acl2::sbyte64p)
-   (p acl2::sbyte32p)
    (vb natp)
    (vbl natp)
-   (vbr natp))
+   (vbr natp)
+   (p acl2::sbyte32p)
+   (sbH acl2::sbyte64p)
+   (g acl2::sbyte32p))
   :measure (nfix (+ (acl2::sbyte32-fix g) 1))
   :returns (result-or-exception (or (not result-or-exception)
                                     (rationalp result-or-exception))
                                 :rule-classes :type-prescription)
   (acl2::b*
-   (((DoubleToDecimal this) this)
-    (g (acl2::sbyte32-fix g))
-    (sbH (acl2::sbyte64-fix sbH))
-    (p (acl2::sbyte32-fix p))
+   (((DoubleToDecimal this) (DoubleToDecimal-fix this))
     (vb (nfix vb))
     (vbl (nfix vbl))
     (vbr (nfix vbr))
+    (p (acl2::sbyte32-fix p))
+    (sbH (acl2::sbyte64-fix sbH))
+    (g (acl2::sbyte32-fix g))
 
     ((unless (>= g 0)) nil) ; AssertionError
     (di (Powers.pow10[] g))
@@ -535,12 +538,22 @@
                     ; di=0 was checked before
                     (= (long-fix (logand (ldiv sbi di) 1)) 0)))
            (DoubleToDecimal.toChars this sbi this.e)
-         (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e)))))
-   (DoubleToDecimal.fullCaseXS-loop
-    this (int-fix (- g 1)) sbH p vb vbl vbr))
+         (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e))))
+    (g (int-fix (- g 1))))
+   (DoubleToDecimal.fullCaseXS-loop this vb vbl vbr p sbH g))
   ///
-  (fty::deffixequiv DoubleToDecimal.fullCaseXS-loop
-                    :hints (("goal" :in-theory (disable nfix))))))
+  (encapsulate ()
+    (local (in-theory
+            '(DoubleToDecimal.fullCaseXS-loop
+              (:CONGRUENCE DOUBLETODECIMAL-EQUIV-IMPLIES-EQUAL-DOUBLETODECIMAL-FIX-1)
+              (:CONGRUENCE ACL2::NAT-EQUIV-IMPLIES-EQUAL-NFIX-1)
+              (:CONGRUENCE ACL2::SBYTE64-EQUIV-IMPLIES-EQUAL-SBYTE64-FIX-1)
+              (:CONGRUENCE ACL2::SBYTE32-EQUIV-IMPLIES-EQUAL-SBYTE32-FIX-1)
+              DOUBLETODECIMAL-FIX-UNDER-DOUBLETODECIMAL-EQUIV
+              ACL2::NFIX-UNDER-NAT-EQUIV
+              ACL2::SBYTE64-FIX-UNDER-SBYTE64-EQUIV
+              ACL2::SBYTE32-FIX-UNDER-SBYTE32-EQUIV)))
+    (fty::deffixequiv DoubleToDecimal.fullCaseXS-loop))))
 
 (define DoubleToDecimal.fullCaseXS
   ((this DoubleToDecimal-p)
@@ -565,8 +578,100 @@
     (vbr (Natural.multiply m cb_r))
     (p (int-fix (- (int-fix (- this.e *H*)) qb)))
     (sbH (Natural.shiftRight vb p))
-    ((unless sbH) nil))
-   (DoubleToDecimal.fullCaseXS-loop
-    this (int-fix (- *H* i)) sbH p vb vbl vbr))
+    ((unless sbH) nil)
+    (g (int-fix (- *H* i))))
+   (DoubleToDecimal.fullCaseXS-loop this vb vbl vbr p sbH g))
   ///
   (fty::deffixequiv DoubleToDecimal.fullCaseXS))
+
+(acl2::with-arith5-help (define DoubleToDecimal.fullCaseXL-loop
+  ((this DoubleToDecimal-p)
+   (qb acl2::sbyte32p)
+   (vb natp)
+   (vbl natp)
+   (vbr natp)
+   (m natp)
+   (sbH acl2::sbyte64p)
+   (g acl2::sbyte32p))
+  :measure (nfix (+ (acl2::sbyte32-fix g) 1))
+  :returns (result-or-exception (or (not result-or-exception)
+                                    (rationalp result-or-exception))
+                                :rule-classes :type-prescription)
+  (acl2::b*
+   (((DoubleToDecimal this) (DoubleToDecimal-fix this))
+    (qb (acl2::sbyte32-fix qb))
+    (vb (nfix vb))
+    (vbl (nfix vbl))
+    (vbr (nfix vbr))
+    (m (nfix m))
+    (sbH (acl2::sbyte64-fix sbH))
+    (g (acl2::sbyte32-fix g))
+
+    ((unless (>= g 0)) nil) ; AssertionError
+    (di (Powers.pow10[] g))
+    ((unless di) nil) ; ArrayIndexOutOfBounds
+    ((when (= di 0)) nil) ; DivideByZeroError
+    (sbi (long-fix (- sbH (lrem sbH di))))
+    (ubi (Natural.multiply m sbi))
+    ((unless ubi) nil)
+    (pow5 (Powers.pow5 (int-fix (+ (int-fix (- this.e *H*)) g))))
+    ((unless pow5) nil)
+    (wbi (Natural.addShiftLeft ubi pow5 g))
+    (uin (<= (int-fix (+ (Natural.compareTo vbl ubi) this.lout)) 0))
+    (win (<= (int-fix (+ (Natural.compareTo wbi vbr) this.rout)) 0))
+    ((when (and uin (not win)))
+     (DoubleToDecimal.toChars this sbi this.e))
+    ((when (and (not uin) win))
+     (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e))
+    ((when uin)
+     (let ((cmp (Natural.closerTo vb ubi wbi)))
+       (if (or (< cmp 0)
+               (and (= cmp 0)
+                    ; di=0 was checked before
+                    (= (long-fix (logand (ldiv sbi di) 1)) 0)))
+           (DoubleToDecimal.toChars this sbi this.e)
+         (DoubleToDecimal.toChars this (long-fix (+ sbi di)) this.e))))
+    (g (int-fix (- g 1))))
+   (DoubleToDecimal.fullCaseXL-loop this qb vb vbl vbr m sbH g))
+  ///
+  (encapsulate ()
+    (local (in-theory
+            '(DoubleToDecimal.fullCaseXL-loop
+              (:CONGRUENCE DOUBLETODECIMAL-EQUIV-IMPLIES-EQUAL-DOUBLETODECIMAL-FIX-1)
+              (:CONGRUENCE ACL2::NAT-EQUIV-IMPLIES-EQUAL-NFIX-1)
+              (:CONGRUENCE ACL2::SBYTE64-EQUIV-IMPLIES-EQUAL-SBYTE64-FIX-1)
+              (:CONGRUENCE ACL2::SBYTE32-EQUIV-IMPLIES-EQUAL-SBYTE32-FIX-1)
+              DOUBLETODECIMAL-FIX-UNDER-DOUBLETODECIMAL-EQUIV
+              ACL2::NFIX-UNDER-NAT-EQUIV
+              ACL2::SBYTE64-FIX-UNDER-SBYTE64-EQUIV
+              ACL2::SBYTE32-FIX-UNDER-SBYTE32-EQUIV)))
+    (fty::deffixequiv DoubleToDecimal.fullCaseXL-loop))))
+
+(define DoubleToDecimal.fullCaseXL
+  ((this DoubleToDecimal-p)
+   (qb acl2::sbyte32p)
+   (cb acl2::sbyte64p)
+   (cb_r acl2::sbyte64p))
+  :returns (result-or-exception (or (not result-or-exception)
+                                    (rationalp result-or-exception))
+                                :rule-classes :type-prescription)
+  (acl2::b*
+   (((DoubleToDecimal this) this)
+    (qb (acl2::sbyte32-fix qb))
+    (cb (acl2::sbyte64-fix cb))
+    (cb_r (acl2::sbyte64-fix cb_r))
+    (p (int-fix (+ (int-fix (- *H* this.e)) qb)))
+    (vb (Natural.valueOfShiftLeft cb p))
+    ((unless vb) nil)
+    (vbl (Natural.valueOfShiftLeft (long-fix (- cb 1)) p))
+    ((unless vbl) nil)
+    (vbr (Natural.valueOfShiftLeft cb_r p))
+    ((unless vbr) nil)
+    (m (Powers.pow5 p))
+    ((unless m) nil)
+    (sbH (Natural.shiftRight vb p))
+    ((unless sbH) nil)
+    (g (int-fix (- *H* *G*))))
+   (DoubleToDecimal.fullCaseXL-loop this qb vb vbl vbr m sbH g))
+  ///
+  (fty::deffixequiv DoubleToDecimal.fullCaseXL))
