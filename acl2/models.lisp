@@ -507,6 +507,8 @@
              (< (int-fix (+ -1 g)) g))
     :enable int-fix)))
 
+; DoubleToDecimal.fullCaseXS-loop
+
 (acl2::with-arith5-help
  (define DoubleToDecimal.fullCaseXS-loop
   ((this DoubleToDecimal-p)
@@ -596,6 +598,88 @@
    (DoubleToDecimal.fullCaseXS-loop this vb vbl vbr p sbH g))
   ///
   (fty::deffixequiv DoubleToDecimal.fullCaseXS))
+
+; DoubleToDecimal.fullCaseM-loop
+
+(acl2::with-arith5-help
+ (define DoubleToDecimal.fullCaseM-loop
+  ((this DoubleToDecimal-p)
+   (vb acl2::sbyte64p)
+   (vbl acl2::sbyte64p)
+   (vbr acl2::sbyte64p)
+   (g acl2::sbyte32p))
+  :measure (nfix (+ (acl2::sbyte32-fix g) 1))
+  :returns (result-or-exception (or (not result-or-exception)
+                                    (rationalp result-or-exception))
+                                :rule-classes :type-prescription)
+  (acl2::b*
+   (((DoubleToDecimal this) (DoubleToDecimal-fix this))
+    (vb (acl2::sbyte64-fix vb))
+    (vbl (acl2::sbyte64-fix vbl))
+    (vbr (acl2::sbyte64-fix vbr))
+    (g (acl2::sbyte32-fix g))
+
+    ((unless (> g 0))
+     (DoubleToDecimal.toChars this vb this.e))
+    (di (Powers.pow10[] g))
+    ((unless di) nil) ; ArrayIndexOutOfBounds
+    ((when (= di 0)) nil) ; DivideByZeroError
+    (sbi (long-fix (- vb (lrem vb di))))
+    (tbi (long-fix (+ sbi di)))
+    (uin (<= (long-fix (+ vbl this.lout)) sbi))
+    (win (<= (long-fix (+ tbi this.rout)) vbr))
+    ((when (and uin (not win)))
+     (DoubleToDecimal.toChars this sbi this.e))
+    ((when (and (not uin) win))
+     (DoubleToDecimal.toChars this tbi this.e))
+    ((when uin)
+     (let ((cmp (int-fix (- (int-fix (- (int-fix (* 2 vb)) sbi)) tbi))))
+       (if (or (< cmp 0)
+               (and (= cmp 0)
+                    ; di=0 was checked before
+                    (= (long-fix (logand (ldiv vb di) 1)) 0)))
+           (DoubleToDecimal.toChars this sbi this.e)
+         (DoubleToDecimal.toChars this tbi this.e))))
+    (g (int-fix (- g 1))))
+   (DoubleToDecimal.fullCaseM-loop this vb vbl vbr g))
+  ///
+  (encapsulate ()
+    (local (in-theory
+            '(DoubleToDecimal.fullCaseM-loop
+              (:CONGRUENCE DOUBLETODECIMAL-EQUIV-IMPLIES-EQUAL-DOUBLETODECIMAL-FIX-1)
+              (:CONGRUENCE ACL2::SBYTE64-EQUIV-IMPLIES-EQUAL-SBYTE64-FIX-1)
+              (:CONGRUENCE ACL2::SBYTE32-EQUIV-IMPLIES-EQUAL-SBYTE32-FIX-1)
+              DOUBLETODECIMAL-FIX-UNDER-DOUBLETODECIMAL-EQUIV
+              ACL2::SBYTE64-FIX-UNDER-SBYTE64-EQUIV
+              ACL2::SBYTE32-FIX-UNDER-SBYTE32-EQUIV)))
+    (fty::deffixequiv DoubleToDecimal.fullCaseM-loop))))
+
+(define DoubleToDecimal.fullCaseM
+  ((this DoubleToDecimal-p)
+   (qb acl2::sbyte32p)
+   (cb acl2::sbyte64p)
+   (cb_r acl2::sbyte64p))
+  :returns (result-or-exception (or (not result-or-exception)
+                                    (rationalp result-or-exception))
+                                :rule-classes :type-prescription)
+  (acl2::b*
+   (((DoubleToDecimal this) this)
+    (qb (acl2::sbyte32-fix qb))
+    (cb (acl2::sbyte64-fix cb))
+    (cb_r (acl2::sbyte64-fix cb_r))
+
+    (pow5 (Powers.pow5[] (int-fix (- *H* this.e))))
+    ((unless pow5) nil) ; ArrayIndexOutOfBounds
+    (m (lshl pow5 (int-fix (+ (int-fix (- *H* this.e)) qb))))
+    (vb (long-fix (* cb m)))
+    (vbl (long-fix (- vb m)))
+    (vbr (long-fix (* cb_r m)))
+    (g (int-fix (- *H* *G*))))
+   (DoubleToDecimal.fullCaseM-loop this vb vbl vbr g))
+  ///
+  (fty::deffixequiv DoubleToDecimal.fullCaseM))
+
+; DoubleToDecimal.fullCaseXL-loop
 
 (acl2::with-arith5-help (define DoubleToDecimal.fullCaseXL-loop
   ((this DoubleToDecimal-p)
