@@ -317,7 +317,15 @@
     (n (acl2::loghead 6 n)))
    (+ this (ash y n)))
    ///
-   (fty::deffixequiv Natural.addShiftLeft)))
+   (fty::deffixequiv Natural.addShiftLeft)
+   (defrule Natural.addShiftLeft-when-small-n
+     (implies (and (natp n)
+                   (< n 64))
+              (equal (Natural.addShiftLeft this y n)
+                     (let* ((this (nfix this))
+                            (y (nfix y)))
+                       (+ this (* y (expt 2 n))))))
+     :enable sbyte32-suff)))
 
 (define Natural.divide
   ((this natp)
@@ -331,7 +339,12 @@
     ((when (= y 0)) nil)) ; ArrayOutOfBounds
    (long-fix (fl (/ this y))))
   ///
-  (fty::deffixequiv Natural.divide))
+  (fty::deffixequiv Natural.divide)
+  (defrule Natural.divide-when-ok
+    (implies (and (natp this)
+                  (posp y))
+             (equal (Natural.divide this y)
+                    (long-fix (fl (/ this y)))))))
 
 ;; ACL2 models of math.Powers
 
@@ -667,11 +680,11 @@
     ((unless vbl) nil)
     (vbr (Natural.valueOfShiftLeft cb_r p))
     ((unless vbr) nil)
-    (m (Powers.pow5 p))
+    (m (Powers.pow5 (int-fix (- this.e *H*))))
     ((unless m) nil)
-    (sbH (Natural.shiftRight vb p))
+    (sbH (Natural.divide vb m))
     ((unless sbH) nil)
-    (g (int-fix (- *H* *G*))))
+    (g (- *H* *G*)))
    (DoubleToDecimal.fullCaseXL-loop this qb vb vbl vbr m sbH g))
   ///
   (fty::deffixequiv DoubleToDecimal.fullCaseXL))

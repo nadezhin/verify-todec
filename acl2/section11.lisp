@@ -234,7 +234,10 @@
    (defruled cbl*2^qb-as-vl
      (equal (* (cbl v f) (expt 2 (qb v f)))
             (vl v f))
-     :enable (qb cb vl-alt))))
+     :enable (qb cb vl-alt)))
+  (defruled cbl-matcher
+    (equal (1- (cb v f))
+           (cbl v f))))
 
 (define T_
   ((v pos-rationalp)
@@ -387,8 +390,13 @@
       (equal (* (cbr v f) (S-full v f) (expt 2 (qb v f)))
              (vbr v f (S-full v f)))
       :enable (vbr cbr vr cb qb cb c)))
-   (acl2::with-arith5-nonlinear-help
+   (acl2::with-arith5-help
     (defruled vbl-matcher
+      (equal (* (cbl v f) (S-full v f) (expt 2 (qb v f)))
+             (vbl v f (S-full v f)))
+      :enable (vbl cbl vl-alt cb qb cb c)))
+   (acl2::with-arith5-nonlinear-help
+    (defruled vbl-matcher-alt
       (equal (- (vb v (S-full v f))
                 (* (S-full v f) (expt 2 (qb v f))))
              (vbl v f (S-full v f)))
@@ -608,6 +616,15 @@
 (defrule |(+ x (- x) y)|
   (equal (+ x (- x) y) (fix y)))
 
+(defrule nfix-when-natp
+  (implies (natp x)
+           (equal (nfix x) x)))
+
+(defrule g<64-dp
+  (implies (< g (H (dp)))
+           (< g 64))
+  :enable ((dp)))
+
 (defrule sbyte32p-g-dp
   (implies (and (natp g)
                 (< g (H (dp))))
@@ -626,6 +643,20 @@
            (equal (int-fix (+ (- *H*) (e v)))
                   (+ (- (H (dp))) (e v))))
   :enable (e-range-when-finite-positive-binary acl2::sbyte32p (dp)))
+
+(defruled {H-e}-matcher-dp
+  (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
+           (equal (int-fix (- *H* (e v)))
+                  (- (H (dp)) (e v))))
+  :enable (e-range-when-finite-positive-binary acl2::sbyte32p (dp)))
+
+(defruled G-dp
+  (equal (G (dp)) (- (H (dp)) (- *H* *G*)))
+  :enable ((dp)))
+
+(defrule G<H
+  (< (- *H* *G*) (H (dp)))
+  :enable ((dp)))
 
 (defrule sbyte32p-{g-1}-dp
   (implies (and (natp g)
@@ -669,6 +700,11 @@
 (defrule sbyte64p-cb-dp
   (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
            (acl2::sbyte64p (cb v (dp))))
+  :enable (acl2::sbyte64p (dp)))
+
+(defrule sbyte64p-cbl-dp
+  (implies (finite-positive-binary-p (pos-rational-fix v) (dp))
+           (acl2::sbyte64p (cbl v (dp))))
   :enable (acl2::sbyte64p (dp)))
 
 (defrule sbyte64p-cbr-dp
@@ -880,6 +916,8 @@
                       (w_i i v))))
     :enable (tbi*D^{e-H}-as-w_i DoubleToDecimal.toChars-lemma)))
 
+; fullCaseXS
+
 (define precondition-fullCaseXS
   ((v pos-rationalp))
   :returns (yes booleanp)
@@ -971,12 +1009,14 @@
            DoubleToDecimal.fullCaseXS
            T_-match-fullCaseXS
            vb-matcher
-           vbl-matcher
+           vbl-matcher-alt
            vbr-matcher
            fl-vb*T-as-sbH
            {H-i}-matcher-dp
            {e-H}-matcher-dp
            acl2::|(- (- x))|))
+
+; fullCaseXL
 
 (define precondition-fullCaseXL
   ((v pos-rationalp))
@@ -994,12 +1034,20 @@
      (let ((f (dp)))
        (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
                      (precondition-fullCaseXL v))
-                (equal (Powers.pow5 (int-fix (- (e v) *H*)))
+                (equal (Powers.pow5 (+ (- (H f)) (e v)))
                        (expt (D/2) (+ (- (H f)) (e v))))))
      :enable (e-range-when-finite-positive-binary
               Powers.pow5 (dp) (D/2) sbyte32-suff)))
+  (defrule {e-i}-type
+    (let ((f (dp)))
+      (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                    (precondition-fullCaseXL v)
+                    (natp g)
+                    (< g (H f)))
+               (natp (+ (- (H f)) g (e v)))))
+    :rule-classes :type-prescription)
   (acl2::with-arith5-help
-   (defrule {E-i}-fullCaseXS
+   (defrule {e-i}-fullCaseXS
      (let ((f (dp)))
        (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
                      (precondition-fullCaseXL v)
@@ -1035,6 +1083,20 @@
                         (/ (T_ v f (S-full v f))))))
       :enable (T_ S-full expt-D-as-expt-D/2)))
    (acl2::with-arith5-help
+    (defrule wbi-match-fullCaseXL
+      (let* ((f (dp))
+             (H (H f))
+             (S (S-full v f)))
+        (implies (and (precondition-fullCaseXL v)
+                      (natp g)
+                      (< g H))
+                 (equal (+ (ubi (- H g) v f S)
+                           (* (expt 2 g)
+                              (expt (D/2) (+ (- H) g (e v)))))
+                        (wbi (- H g) v f S))))
+      :enable (e-range-when-finite-positive-binary
+               ubi wbi sbi tbi t_i T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
     (defrule S*2^qb-match-fullCaseXL
       (let ((f (dp)))
         (implies (precondition-fullCaseXL v)
@@ -1042,7 +1104,6 @@
                         (* (S-full v f) (expt 2 (qb v f))))))
       :enable S-full)))
 
-#|
 (defrule DoubleToDecimal.fullCaseXL-loop-correct
   (let* ((f (dp))
          (H (H f))
@@ -1051,7 +1112,7 @@
          (vb (vb v S))
          (vbl (vbl v f S))
          (vbr (vbr v f S))
-         (m (expt (D/2) (+ (- (H f)) (e v))))
+         (m (/ (T_ v f S)))
          (sbH (sbi H v f)))
    (implies
     (and (common-precondition this v)
@@ -1067,12 +1128,27 @@
            {e-H}-matcher-dp
            tbi-matcher ubi-matcher wbi-matcher
            u-or-w-in-Rv-when-i>=H)
-  :disable (expt nfix evenp abs)
-  :prep-lemmas
-  ((defrule lemma
-     (equal (NFIX (/ (T_ V (DP) (S-FULL V (DP)))))
-            (/ (T_ V (DP) (S-FULL V (DP))))
-            ))
-   )
-  )
-|#
+  :disable (expt nfix evenp abs acl2::nat-equiv))
+
+(acl2::with-arith5-help
+ (defrule DoubleToDecimal.fullCaseXL-correct
+   (let* ((f (dp))
+          (qb (qb v f))
+          (cb (cb v f))
+          (cb_r (cbr v f)))
+     (implies (and (common-precondition this v)
+                   (precondition-fullCaseXL v))
+              (equal (DoubleToDecimal.fullCaseXL this qb cb cb_r)
+                     (algo1 (G f) v f))))
+   :enable (DoubleToDecimal.fullCaseXL-loop-correct
+            DoubleToDecimal.fullCaseXL
+            /T_-match-fullCaseXL
+            vb-matcher
+            vbl-matcher
+            vbr-matcher
+            cbl-matcher
+            fl-vb*T-as-sbH
+            {H-e}-matcher-dp
+            {e-H}-matcher-dp
+            G-dp)))
+
