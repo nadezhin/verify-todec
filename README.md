@@ -1,14 +1,14 @@
 # verify-todec
-Formal check of Rafaello Guilietti's paper "Rendering doubles in Java"
+Formal check of Raffaello Guilietti's paper "Rendering doubles in Java"
 
-This is an attempt to review mathematics behind contrubution to OpenJDK authored by Rafaello Guilietti.
+This is an attempt to review mathematics behind contrubution to OpenJDK authored by Raffaello Guilietti.
 
 Rafaello Guilietti has offered his code [1] to fix the problems described in the longstanding issue [2].
 He also contributed the content of the CSR which I filed [3].
 There are some pertinent posts to core-libs-dev in March [4] and April [5] as well.
 In one of these the contributor posted a link to a background paper on the work [6].
 
-In this repository I try to formally check his paper using ACL2 proof checker.
+In this repository I try to formally check his paper using ACL2[7] proof checker.
 Definitions and theorems from Section N of the pape are in file acl2/sectionN.lisp .
 
 [1] http://mail.openjdk.java.net/pipermail/core-libs-dev/2018-April/052696.html

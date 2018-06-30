@@ -1152,3 +1152,139 @@
             {e-H}-matcher-dp
             G-dp)))
 
+; fullCaseM
+
+(define precondition-fullCaseM
+  ((v pos-rationalp))
+  :returns (yes booleanp)
+  (acl2::b*
+   ((f (dp))
+    (H (H f))
+    (e (e v)))
+   (and (<= e (+ H (qb v f)))
+        (<= e H)))
+  ///
+  (fty::deffixequiv precondition-fullCaseM)
+  #|
+  (acl2::with-arith5-help
+   (defrule m-fullCaseXL
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                     (precondition-fullCaseXL v))
+                (equal (Powers.pow5 (+ (- (H f)) (e v)))
+                       (expt (D/2) (+ (- (H f)) (e v))))))
+     :enable (e-range-when-finite-positive-binary
+              Powers.pow5 (dp) (D/2) sbyte32-suff)))
+  (defrule {e-i}-type
+    (let ((f (dp)))
+      (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                    (precondition-fullCaseXL v)
+                    (natp g)
+                    (< g (H f)))
+               (natp (+ (- (H f)) g (e v)))))
+    :rule-classes :type-prescription)
+  (acl2::with-arith5-help
+   (defrule {e-i}-fullCaseXS
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) f)
+                     (precondition-fullCaseXL v)
+                     (natp g)
+                     (< g (H f)))
+                (equal (Powers.pow5 (int-fix (+ (- (H f)) g (e v))))
+                       (expt (D/2) (+ (- (H f)) g (e v))))))
+     :enable (e-range-when-finite-positive-binary
+              Powers.pow5 (dp) (D/2) sbyte32-suff)))
+  (defrule p-type-fullCaseXL
+    (let ((f (dp)))
+      (implies (precondition-fullCaseXL v)
+               (natp (+ (H f) (- (e v)) (qb v f)))))
+    :rule-classes :type-prescription)
+   (defrule sbyte32p-p-fullCaseXL
+     (let ((f (dp)))
+       (implies (and (finite-positive-binary-p (pos-rational-fix v) (dp))
+                     (precondition-fullCaseXL v))
+                (acl2::sbyte32p (+ (H f) (- (e v)) (qb v f)))))
+     :enable (qb (dp) sbyte32-suff))
+   (acl2::with-arith5-help
+    (defruled T_-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt (D/2) (+ (H f) (- (e v))))
+                        (T_ v f (S-full v f)))))
+      :enable (T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
+    (defruled /T_-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt (D/2) (+ (- (H f)) (e v)))
+                        (/ (T_ v f (S-full v f))))))
+      :enable (T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
+    (defrule wbi-match-fullCaseXL
+      (let* ((f (dp))
+             (H (H f))
+             (S (S-full v f)))
+        (implies (and (precondition-fullCaseXL v)
+                      (natp g)
+                      (< g H))
+                 (equal (+ (ubi (- H g) v f S)
+                           (* (expt 2 g)
+                              (expt (D/2) (+ (- H) g (e v)))))
+                        (wbi (- H g) v f S))))
+      :enable (e-range-when-finite-positive-binary
+               ubi wbi sbi tbi t_i T_ S-full expt-D-as-expt-D/2)))
+   (acl2::with-arith5-help
+    (defrule S*2^qb-match-fullCaseXL
+      (let ((f (dp)))
+        (implies (precondition-fullCaseXL v)
+                 (equal (expt 2 (+ (H f) (- (e v)) (qb v f)))
+                        (* (S-full v f) (expt 2 (qb v f))))))
+      :enable S-full))
+|#
+)
+#|
+(defrule DoubleToDecimal.fullCaseM-loop-correct
+  (let* ((f (dp))
+         (H (H f))
+         (S (S-full v f))
+         (vb (vb v S))
+         (vbl (vbl v f S))
+         (vbr (vbr v f S)))
+   (implies
+    (and (common-precondition this v)
+         (precondition-fullCaseM v)
+         (natp g)
+         (< g H))
+    (equal (DoubleToDecimal.fullCaseM-loop this vb vbl vbr g)
+           (algo1 (- H g) v f))))
+  :enable (DoubleToDecimal.fullCaseM-loop
+           algo1-when-in-tau-intervalp-u_i-or-w_i
+           lrem-as-sbi-dp logand-ldiv-sbi-as-evenp-s_i
+           /T_-match-fullCaseXL
+           {e-H}-matcher-dp
+           tbi-matcher ubi-matcher wbi-matcher
+           u-or-w-in-Rv-when-i>=H)
+  :disable (expt nfix evenp abs acl2::nat-equiv))
+
+(acl2::with-arith5-help
+ (defrule DoubleToDecimal.fullCaseXL-correct
+   (let* ((f (dp))
+          (qb (qb v f))
+          (cb (cb v f))
+          (cb_r (cbr v f)))
+     (implies (and (common-precondition this v)
+                   (precondition-fullCaseXL v))
+              (equal (DoubleToDecimal.fullCaseXL this qb cb cb_r)
+                     (algo1 (G f) v f))))
+   :enable (DoubleToDecimal.fullCaseXL-loop-correct
+            DoubleToDecimal.fullCaseXL
+            /T_-match-fullCaseXL
+            vb-matcher
+            vbl-matcher
+            vbr-matcher
+            cbl-matcher
+            fl-vb*T-as-sbH
+            {H-e}-matcher-dp
+            {e-H}-matcher-dp
+            G-dp)))
+|#
