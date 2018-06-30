@@ -3,7 +3,7 @@ Formal check of Raffaello Guilietti's paper "Rendering doubles in Java"
 
 This is an attempt to review mathematics behind contrubution to OpenJDK authored by Raffaello Guilietti.
 
-Rafaello Guilietti has offered his code [1] to fix the problems described in the longstanding issue [2].
+Raffaello Guilietti has offered his code [1] to fix the problems described in the longstanding issue [2].
 He also contributed the content of the CSR which I filed [3].
 There are some pertinent posts to core-libs-dev in March [4] and April [5] as well.
 In one of these the contributor posted a link to a background paper on the work [6].
