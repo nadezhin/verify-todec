@@ -21,6 +21,6 @@ Definitions and theorems from Section N of the pape are in file acl2/sectionN.li
 
 [5] http://mail.openjdk.java.net/pipermail/core-libs-dev/2018-April/thread.html
 
-[6] https://9b7022c5f9.files.wordpress.com/2018/04/todec.pdf
+[6] https://drive.google.com/drive/folders/1MErGSOaqDFw2q9rz48WlpBDKyZkLuUqj
 
 [7] http://www.cs.utexas.edu/~moore/acl2/
