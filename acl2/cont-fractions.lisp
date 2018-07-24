@@ -53,7 +53,7 @@
                (equal (frac-alpha-d alpha (+ d1 d2))
                       (if (< fr+ 1) fr+ (- fr+ 1)))))
     :enable frac-+))
-   
+
 (acl2::with-arith5-nonlinear-help
  (defrule frac-alpha-d-arith-progression-up
   (implies
@@ -102,7 +102,7 @@
   :hints (("subgoal *1/2" :use (:instance frac-alpha-d-+
                                           (d1 (+ prev-den (* cur-den (1- i))))
                                           (d2 cur-den))))))
- 
+
 (define frac-alpha-d-in
   :long "for all i in [1,n) frac(alpha*i) in [lo,hi]"
   ((alpha pos-rationalp)
@@ -189,7 +189,6 @@
                        (lo lo2)
                        (hi hi2)))))))
 
-
 (acl2::with-arith5-help
  (defruled frac-alpha-d-even
   (acl2::b*
@@ -242,9 +241,9 @@
   (acl2::b*
    ((prev-frac (frac-alpha-d alpha prev-den))
     (cur-frac (frac-alpha-d alpha cur-den))
-    (q (fl (/ (- 1 prev-frac) cur-frac))))
+    (a (fl (/ (- 1 prev-frac) cur-frac))))
    (implies
-    (and (posp q)
+    (and (posp a)
          (frac-alpha-d-in alpha cur-den (+ cur-frac (- 1 prev-frac)) prev-frac)
          (posp prev-den)
          (posp cur-den)
@@ -252,16 +251,34 @@
          (<= cur-frac prev-frac))
     (frac-alpha-d-in
      alpha
-     (+ prev-den (* q cur-den))
+     (+ prev-den (* a cur-den))
      cur-frac
-     (+ prev-frac (* (1- q) cur-frac)))))
+     (+ prev-frac (* (1- a) cur-frac)))))
   :use ((:instance frac-alpha-d-even
                    (i (1- (fl (/ (- 1 (frac-alpha-d alpha prev-den))
                                  (frac-alpha-d alpha cur-den))))))
         (:instance fl-def
                    (x (/ (- 1 (frac-alpha-d alpha prev-den))
                          (frac-alpha-d alpha cur-den)))))))
- 
+
+(acl2::with-arith5-help
+ (defruled frac-alpha-d-start
+   (acl2::b*
+    ((frac (frac-alpha-d alpha 1))
+     (a1 (fl (/ frac))))
+    (frac-alpha-d-in alpha a1 frac (* (1- a1) frac)))
+   :enable frac-alpha-d-in
+   :cases ((<= 2 (fl (/ (frac-alpha-d alpha 1))))
+           (= 1 (fl (/ (frac-alpha-d alpha 1))))
+           (= 0 (fl (/ (frac-alpha-d alpha 1)))))
+   :hints
+   (("subgoal 3" :use
+     ((:instance frac-alpha-d-even-corr
+                 (prev-den 1)
+                 (cur-den 1))
+      (:instance fl+int-rewrite
+                 (n -1)
+                 (x (/ (frac-alpha-d alpha 1)))))))))
 
 (acl2::with-arith5-nonlinear-help
  (defruled frac-alpha-d-odd
@@ -316,9 +333,9 @@
   (acl2::b*
    ((prev-frac (frac-alpha-d alpha prev-den))
     (cur-frac (frac-alpha-d alpha cur-den))
-    (q (fl (/ prev-frac (- 1 cur-frac)))))
+    (a (fl (/ prev-frac (- 1 cur-frac)))))
    (implies
-    (and (posp q)
+    (and (posp a)
          (frac-alpha-d-in alpha cur-den prev-frac (- cur-frac prev-frac))
          (posp prev-den)
          (posp cur-den)
@@ -326,8 +343,8 @@
          (<= prev-frac cur-frac))
     (frac-alpha-d-in
      alpha
-     (+ prev-den (* q cur-den))
-     (- prev-frac (* (1- q) (- 1 cur-frac)))
+     (+ prev-den (* a cur-den))
+     (- prev-frac (* (1- a) (- 1 cur-frac)))
      cur-frac)))
   :use ((:instance frac-alpha-d-odd
                    (i (1- (fl (/ (frac-alpha-d alpha prev-den)
@@ -343,14 +360,14 @@
    (prev-den posp)
    (odd booleanp)
    (max-den posp))
-  :returns (mv (den posp :rule-classes :type-prescription)
+  :returns (mv (cur-den posp :rule-classes :type-prescription)
+               (prev-den posp :rule-classes :type-prescription)
                (lo rationalp :rule-classes :type-prescription)
                (hi rationalp :rule-classes :type-prescription))
   :measure (nfix (- (1+ (acl2::pos-fix max-den))
                     (acl2::pos-fix cur-den)))
   (acl2::b*
-   (;(alpha (pos-rational-fix alpha))
-    (cur-den (acl2::pos-fix cur-den))
+   ((cur-den (acl2::pos-fix cur-den))
     (prev-den (acl2::pos-fix prev-den))
     (max-den (acl2::pos-fix max-den))
     (cur-frac (frac-alpha-d alpha cur-den))
@@ -361,32 +378,27 @@
     (hi (if odd
             (- (if (= cur-frac 0) 1 cur-frac) prev-frac)
           prev-frac))
-    ((when (= cur-frac 0)) (mv cur-den lo hi))
-    (q-pre (if odd
+    ((unless (and (<= prev-den cur-den)
+                  (<= cur-den max-den)
+                  (< 0 cur-frac)
+                  (if odd
+                      (<= prev-frac cur-frac)
+                    (<= cur-frac prev-frac))))
+     (mv cur-den prev-den lo hi))
+    (a-pre (if odd
                (/ prev-frac (- 1 cur-frac))
              (/ (- 1 prev-frac) cur-frac)))
-    (q (fl q-pre))
-    ((when (or (< q 1)
-               (< cur-den prev-den)
-               (< max-den cur-den)
-               (if odd
-                   (< cur-frac prev-frac)
-                 (< prev-frac cur-frac))))
-     (mv cur-den lo hi)))
-   (frac-alpha-d-bound-aux alpha (+ prev-den (* q cur-den)) cur-den (not odd) max-den))
+    (a (fl a-pre))
+    ((unless (posp a))
+     (mv cur-den prev-den lo hi)))
+   (frac-alpha-d-bound-aux alpha (+ prev-den (* a cur-den)) cur-den (not odd) max-den))
   ///
   (fty::deffixequiv frac-alpha-d-bound-aux)))
 
-
-#|
 (acl2::with-arith5-help
- (rule
- (acl2::b*
-  (;(alpha (pos-rational-fix alpha))
-    ;(cur-den (acl2::pos-fix cur-den))
-    ;(prev-den (acl2::pos-fix prev-den))
-    (max-den (acl2::pos-fix max-den))
-    (cur-frac (frac-alpha-d alpha cur-den))
+ (defrule frac-alpha-d-bound-aux-correct
+  (acl2::b*
+   ((cur-frac (frac-alpha-d alpha cur-den))
     (prev-frac (frac-alpha-d alpha prev-den))
     (cur-lo (if odd
                 prev-frac
@@ -394,88 +406,103 @@
     (cur-hi (if odd
                 (- (if (= cur-frac 0) 1 cur-frac) prev-frac)
               prev-frac))
-    ((mv den lo hi) (frac-alpha-d-bound-aux alpha cur-den prev-den odd max-den))
-   )
- (implies
-  (and (frac-alpha-d-in alpha cur-den cur-lo cur-hi)
-       (pos-rationalp alpha)
-       (posp prev-den)
-       (posp cur-den)
-       (posp max-den)
-       (<= prev-den cur-den)
-       (if odd
-           (<= (frac-alpha-d alpha prev-den) (frac-alpha-d alpha cur-den))
-         (<= (frac-alpha-d alpha cur-den) (frac-alpha-d alpha prev-den)))
-       )
-  (frac-alpha-d-in alpha den lo hi)))
- :induct (frac-alpha-d-bound-aux alpha cur-den prev-den odd max-den)
- :enable (frac-alpha-d-bound-aux)
- :disable frac-alpha-d-+
- :hints (("subgoal *1/3" :cases (odd) :do-not-induct t)
-         ("subgoal *1/3.2" :by lemma-1/3.2)
-         ("subgoal *1/3.1" :by lemma-1/3.1)
-;         ("subgoal *1/3.2.3" :by lemma-1/3.2.3)
-;         ("subgoal *1/3.2.2" :by lemma-1/3.2.2)
-;         ("subgoal *1/3.2.1" :by lemma-1/3.2.1)
-;         ("subgoal *1/3.1.5" :by lemma-1/3.1.5)
-;         ("subgoal *1/3.1.3" :by lemma-1/3.1.3)
-;         ("subgoal *1/3.1.1" :by lemma-1/3.1.1)
-         )
- ))))
- :prep-lemmas
- ((acl2::with-arith5-nonlinear-help
-   (defrule lemma
-    (implies
-     (and (<= (frac-alpha-d alpha cur-den) (frac-alpha-d alpha prev-den))
-          (posp cur-den)
-          (posp prev-den)
-          (posp (fl (/ (- 1 (frac-alpha-d alpha prev-den))
-                       (frac-alpha-d alpha cur-den))))
-          )
-     (<= (frac-alpha-d alpha cur-den)
-         (frac-alpha-d alpha (+ prev-den
-                                (* cur-den (fl (/ (- 1 (frac-alpha-d alpha prev-den))
-                                                  (frac-alpha-d alpha
-                                                                cur-den))))))))
-    :use ((:instance frac-alpha-d-arith-progression-up
-                     (i (fl (/ (- 1 (frac-alpha-d alpha prev-den))
-                               (frac-alpha-d alpha cur-den)))))
-;          (:instance fl-def (x (/ (- 1 (frac-alpha-d alpha prev-den))
-;                                  (frac-alpha-d alpha cur-den)))))
-    ))
- ))
- ))
-|#
+    ((mv new-cur-den ?new-prev-den lo hi)
+     (frac-alpha-d-bound-aux alpha cur-den prev-den odd max-den)))
+   (implies
+    (and (frac-alpha-d-in alpha cur-den cur-lo cur-hi)
+         (posp prev-den)
+         (posp cur-den))
+    (frac-alpha-d-in alpha new-cur-den lo hi)))
+  :induct (frac-alpha-d-bound-aux alpha cur-den prev-den odd max-den)
+  :enable (frac-alpha-d-bound-aux)
+  :disable frac-alpha-d-+
+  :hints (("subgoal *1/1" :cases (odd) :do-not-induct t)
+          ("subgoal *1/1.2" :use frac-alpha-d-even-corr
+           :cases ((< (* (frac-alpha-d alpha cur-den)
+                         (fl (/ (- 1 (frac-alpha-d alpha prev-den))
+                                (frac-alpha-d alpha cur-den))))
+                      (- 1 (frac-alpha-d alpha prev-den)))
+                   (= (* (frac-alpha-d alpha cur-den)
+                         (fl (/ (- 1 (frac-alpha-d alpha prev-den))
+                                (frac-alpha-d alpha cur-den))))
+                      (- 1 (frac-alpha-d alpha prev-den)))))
+          ("subgoal *1/1.2.3" :use
+           (:instance lemma
+                      (x (- 1 (frac-alpha-d alpha prev-den)))
+                      (y (frac-alpha-d alpha cur-den))))
+          ("subgoal *1/1.1" :use frac-alpha-d-odd-corr
+           :cases ((< (* (- 1 (frac-alpha-d alpha cur-den))
+                         (fl (/ (frac-alpha-d alpha prev-den)
+                                (- 1 (frac-alpha-d alpha cur-den)))))
+                      (frac-alpha-d alpha prev-den))
+                   (= (* (- 1 (frac-alpha-d alpha cur-den))
+                         (fl (/ (frac-alpha-d alpha prev-den)
+                                (- 1 (frac-alpha-d alpha cur-den)))))
+                      (frac-alpha-d alpha prev-den))))
+          ("subgoal *1/1.1.3" :use
+           (:instance lemma
+                      (x (frac-alpha-d alpha prev-den))
+                      (y (- 1 (frac-alpha-d alpha cur-den))))))
+  :prep-lemmas
+  ((acl2::with-arith5-nonlinear-help
+    (defruled lemma
+      (implies (and (rationalp x)
+                    (rationalp y)
+                   (< 0 y))
+               (<= (* y (fl (/ x y))) x)))))))
 
 (acl2::with-arith5-nonlinear-help
  (define frac-alpha-d-bound
   ((alpha pos-rationalp)
    (max-den posp))
-  :returns (mv (den posp :rule-classes :type-prescription)
+  :returns (mv (cur-den posp :rule-classes :type-prescription)
+               (prev-den natp :rule-classes :type-prescription)
                (lo rationalp :rule-classes :type-prescription)
                (hi rationalp :rule-classes :type-prescription))
   (acl2::b*
-   ((alpha (pos-rational-fix alpha))
-    (max-den (acl2::pos-fix max-den))
-    (frac (frac alpha)))
-   (cond ((= frac 0) (mv 1 1 0))
-         ((< frac 1/2)
-          (frac-alpha-d-bound-aux alpha (fl (/ frac)) 1 t max-den))
-         ((> frac 1/2)
-          (frac-alpha-d-bound-aux alpha (fl (/ (- 1 frac))) 1 nil max-den))
-         (t (mv 2 1/2 1/2))))
-  :guard-hints
-  (("goal" :use
-    (:instance n<=fl-linear
-               (n 2)
-               (x (/ (- 1 (frac (pos-rational-fix alpha))))))))
+   ((frac (frac-alpha-d alpha 1)))
+   (if (= frac 0)
+       (mv 1 0 1 0)
+     (frac-alpha-d-bound-aux alpha (fl (/ frac)) 1 t max-den)))
   ///
   (fty::deffixequiv frac-alpha-d-bound)))
+
+(acl2::with-arith5-nonlinear-help
+ (defrule frac-alpha-d-bound-correct
+  (acl2::b* (((mv cur-den ?prev-den lo hi) (frac-alpha-d-bound alpha max-den)))
+            (frac-alpha-d-in alpha cur-den lo hi))
+ :enable frac-alpha-d-bound
+ :use (:instance frac-alpha-d-bound-aux-correct
+                 (cur-den (fl (/ (frac-alpha-d alpha 1))))
+                 (prev-den 1)
+                 (odd t))
+ :cases ((= 0 (frac-alpha-d alpha 1))
+         (< 1/2 (frac-alpha-d alpha 1)))
+ :hints
+ (("subgoal 3" :use frac-alpha-d-start
+   :cases ((< (* (frac-alpha-d alpha 1)
+                 (fl (/ (frac-alpha-d alpha 1))))
+              1)
+           (= (* (frac-alpha-d alpha 1)
+                 (fl (/ (frac-alpha-d alpha 1))))
+              1)))
+  ("subgoal 3.2" :use (:instance frac-alpha-d-arith-progression-up
+                                 (prev-den 1)
+                                 (cur-den 1)
+                                 (i (1- (fl (/ (frac-alpha-d alpha 1)))))))
+  ("subgoal 3.1" :use (:instance frac-alpha-d-arith-progression-up=
+                                 (prev-den 1)
+                                 (cur-den 1)
+                                 (i (1- (fl (/ (frac-alpha-d alpha 1)))))))
+  ("subgoal 2" :expand (frac-alpha-d-in alpha 1 1 0))
+  ("subgoal 1" :cases ((= (fl (/ (frac-alpha-d alpha 1))) 1))
+   :expand (frac-alpha-d-in alpha 1 (frac-alpha-d alpha 1) 0)))))
 
 (define frac-alpha-d-bound-q
   ((q integerp)
    (max-den posp))
-  :returns (mv (den posp :rule-classes :type-prescription)
+  :returns (mv (cur-den posp :rule-classes :type-prescription)
+               (prev-den natp :rule-classes :type-prescription)
                (lo rationalp :rule-classes :type-prescription)
                (hi rationalp :rule-classes :type-prescription))
   (acl2::b*
@@ -498,11 +525,11 @@
    (acl2::b*
     ((q (ifix q))
      ((unless (<= (Qmin f) q)) acc)
-     ((mv den lo hi) (frac-alpha-d-bound-q q (+ (expt 2 (1+ (P f))) 2))))
+     ((mv cur-den prev-den lo hi) (frac-alpha-d-bound-q q (+ (expt 2 (1+ (P f))) 2))))
     (frac-alpha-d-bound-f
      f
      (1- q)
-     (cons (list q den lo hi) acc)))))
+     (cons (list q cur-den prev-den lo hi) acc)))))
 
 (defconst *dp-bounds* (frac-alpha-d-bound-f (dp) (- 1023 52) nil))
 
@@ -511,14 +538,14 @@
   (and bounds
        (if (atom (cdr bounds))
            (list (nth 1 (acl2::list-fix (car bounds)))
-                 (nth 2 (acl2::list-fix (car bounds)))
-                 (nth 3 (acl2::list-fix (car bounds))))
+                 (nth 3 (acl2::list-fix (car bounds)))
+                 (nth 4 (acl2::list-fix (car bounds))))
          (acl2::b*
           ((hd (acl2::list-fix (car bounds)))
            (tail (collect (cdr bounds))))
           (list (max (rfix (nth 1 hd)) (rfix (nth 0 tail)))
-                (min (rfix (nth 2 hd)) (rfix (nth 1 tail)))
-                (max (rfix (nth 3 hd)) (rfix (nth 2 tail))))))))
+                (min (rfix (nth 3 hd)) (rfix (nth 1 tail)))
+                (max (rfix (nth 4 hd)) (rfix (nth 2 tail))))))))
 
 (rule
  (and (equal (expo (nth 1 (collect *dp-bounds*))) -64)
@@ -553,9 +580,9 @@ frac(alpha*33) = 0
 
 (rule
  (and
-  (equal (frac-alpha-d-bound *alpha* 1) (list 3 10/33 20/33))
-  (equal (frac-alpha-d-bound *alpha* 3) (list 10 4/33 10/11))
-  (equal (frac-alpha-d-bound *alpha* 10) (list 33 1/33 32/33))))
+  (equal (frac-alpha-d-bound *alpha* 1) (list 3 1 10/33 20/33))
+  (equal (frac-alpha-d-bound *alpha* 3) (list 10 3 4/33 10/11))
+  (equal (frac-alpha-d-bound *alpha* 10) (list 33 10 1/33 32/33))))
 
 (defrule frac-alpha-d-i<1
   (frac-alpha-d-in *alpha* 1 1 0))
