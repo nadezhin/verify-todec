@@ -1,6 +1,3 @@
-#|
-(include-book "rtl/rel11/portcullis" :dir :system)
-|#
 (in-package "RTL")
 (include-book "section3")
 
