@@ -657,8 +657,8 @@ public class Prototype {
         p(627, 0x4f0cedc95a718dd4L, 0x5b01e8b09aa0d1b5L); // 5^324
     }
 
-    static BigDecimal toBigDecimal(boolean sgn, long d, int r) {
-        return new BigDecimal(BigInteger.valueOf(sgn ? -d : d), -r);
+    static BigDecimal toBigDecimal(boolean sgn, long d, int k) {
+        return new BigDecimal(BigInteger.valueOf(sgn ? -d : d), -k);
     }
 
     static BigDecimal toDecimal(double v) {
@@ -689,9 +689,9 @@ public class Prototype {
             cbl = cb.subtract(BigInteger.ONE);
             cbr = cb.add(BigInteger.valueOf(2));
         }
-        int r = ord10pow2(qb + 1) - 1;
-        NumCQ p5 = Prototype.powers5.get(-r - MIN_POW_5);
-        int qq = qb + p5.q - r;
+        int k = ord10pow2(qb + 1) - 1;
+        NumCQ p5 = Prototype.powers5.get(-k - MIN_POW_5);
+        int qq = qb + p5.q - k;
         // Fixed point approximation of Vl,V,Vr with 65 fractional digits
         int sh = -qq - 65;
         BigInteger Vl = p5.c.multiply(cbl).shiftRight(sh);
@@ -706,50 +706,50 @@ public class Prototype {
             boolean win10 = (BigInteger.valueOf(t10 * 10).shiftLeft(65).compareTo(Vr) + out) <= 0;
             if (uin10 || win10) {
                 if (!win10) {
-                    return toBigDecimal(sgn, s10, r + 1);
+                    return toBigDecimal(sgn, s10, k + 1);
                 }
                 if (!uin10) {
-                    return toBigDecimal(sgn, t10, r + 1);
+                    return toBigDecimal(sgn, t10, k + 1);
                 }
                 assert uin10 && win10;
                 // This is possible only for powers of 2 when Rv may be wider than 10^{r+1}
                 assert qb == q - 2;
                 if (s10 % 10 == 0) {
-                    return toBigDecimal(sgn, s10, r + 1);
+                    return toBigDecimal(sgn, s10, k + 1);
                 }
                 if (t10 % 10 == 0) {
-                    return toBigDecimal(sgn, t10, r + 1);
+                    return toBigDecimal(sgn, t10, k + 1);
                 }
                 int cmp10 = V.compareTo(BigInteger.valueOf((s10 + t10) * 10).shiftLeft(64));
                 if (cmp10 < 0) {
-                    return toBigDecimal(sgn, s10, r + 1);
+                    return toBigDecimal(sgn, s10, k + 1);
                 }
                 assert cmp10 > 0; // cmp10 == 0 doesn't happen for powers of two
-                return toBigDecimal(sgn, t10, r + 1);
+                return toBigDecimal(sgn, t10, k + 1);
             }
         } else if (s10 == 0) {
             // Double.MIN_VALUE or Double.MIN_VALUE*2
-            return toBigDecimal(sgn, s == 4 ? 49 : 99, r - 1);
+            return toBigDecimal(sgn, s == 4 ? 49 : 99, k - 1);
         }
         boolean uin = (Vl.compareTo(BigInteger.valueOf(s).shiftLeft(65)) + out) <= 0;
         boolean win = (BigInteger.valueOf(t).shiftLeft(65).compareTo(Vr) + out) <= 0;
         assert uin || win; // because 10^r <= 2^q
         if (!win) {
-            return toBigDecimal(sgn, s, r);
+            return toBigDecimal(sgn, s, k);
         }
         if (!uin) {
-            return toBigDecimal(sgn, t, r);
+            return toBigDecimal(sgn, t, k);
         }
         int cmp = V.compareTo(BigInteger.valueOf(s + t).shiftLeft(64));
         if (cmp < 0) {
-            return toBigDecimal(sgn, s, r);
+            return toBigDecimal(sgn, s, k);
         }
         if (cmp > 0) {
-            return toBigDecimal(sgn, t, r);
+            return toBigDecimal(sgn, t, k);
         }
         if ((s & 1) == 0) {
-            return toBigDecimal(sgn, s, r);
+            return toBigDecimal(sgn, s, k);
         }
-        return toBigDecimal(sgn, t, r);
+        return toBigDecimal(sgn, t, k);
     }
 }
