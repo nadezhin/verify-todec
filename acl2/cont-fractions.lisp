@@ -201,49 +201,46 @@
                        (hi hi2)))))))
 
 (define frac-alpha-d-nonzero-in
-  :long "for all i in [1,n) (frac(alpha*i)=0 \/ frac(alpha*i) in [lo,hi])"
+  :long "for all i in [0,n) (frac(alpha*i)=0 \/ frac(alpha*i) in [lo,hi])"
   ((alpha pos-rationalp)
-   (n posp)
+   (n natp)
    (lo rationalp)
    (hi rationalp))
   :returns (yes booleanp)
-  (or (not (integerp n))
-      (<= n 1)
+  (or (zp n)
       (let ((frac (frac-alpha-d alpha (1- n))))
         (and (or (= frac 0)
                  (and (<= (rfix lo) frac)
                       (<= frac (rfix hi))))
              (frac-alpha-d-nonzero-in alpha (1- n) lo hi))))
   ///
-  (fty::deffixequiv frac-alpha-d-nonzero-in
-                    :hints (("goal" :in-theory (enable acl2::pos-fix))))
+  (fty::deffixequiv frac-alpha-d-nonzero-in)
   (defrule frac-alpha-d-nonzeor-in-dummy
     (frac-alpha-d-nonzero-in alpha n 0 1))
   (defruled frac-alpha-d-nonzero-in-when-frac-alpha-d-in
     (implies (and (frac-alpha-d-in alpha n2 lo hi)
-                  (<= (acl2::pos-fix n) (acl2::pos-fix n2)))
+                  (<= (nfix n) (nfix n2)))
              (frac-alpha-d-nonzero-in alpha n lo hi))
-    :enable acl2::pos-fix
     :induct (frac-alpha-d-nonzero-in alpha n lo hi)
-    :hints (("subgoal *1/4" :use (:instance frac-alpha-d-in-necc
+    :hints (("subgoal *1/3" :use (:instance frac-alpha-d-in-necc
                                             (n n2)
-                                            (i (1- (acl2::pos-fix n)))))))
+                                            (i (1- (nfix n)))))))
   (acl2::with-arith5-help
    (defruled frac-alpha-d-nonzero-in-when-periodic
      (implies (and (frac-alpha-d-in alpha n2 lo hi)
                    (= (frac-alpha-d alpha n2) 0)
                    (posp n2)
-                   (posp n))
+                   (natp n))
               (frac-alpha-d-nonzero-in alpha n lo hi))
      :induct (frac-alpha-d-nonzero-in alpha n lo hi)
      :hints
-     (("subgoal *1/4"
+     (("subgoal *1/3"
        :cases ((= 0 (mod (1- n) n2))
                (< 0 (mod (1- n) n2)))
        :use (:instance frac-alpha-d-periodic
                        (period n2)
                        (i (floor (1- n) n2))))
-      ("subgoal *1/4.1" :use ((:instance frac-alpha-d-+
+      ("subgoal *1/3.1" :use ((:instance frac-alpha-d-+
                                          (d1 (* n2 (floor (1- n) n2)))
                                          (d2 (mod (1- n) n2)))
                               (:instance frac-alpha-d-in-necc
@@ -267,15 +264,33 @@
                   (<= (rfix hi2) (rfix hi)))
              (frac-alpha-d-nonzero-in alpha n lo hi)))
   (defruled frac-alpha-d-nonzero-in-necc
-     (let ((frac (frac-alpha-d alpha i)))
+     (let ((frac (frac-alpha-d alpha d)))
        (implies (and (frac-alpha-d-nonzero-in alpha n lo hi)
-                     (posp i)
-                     (< i (acl2::pos-fix n))
+                     (natp d)
+                     (< d (nfix n))
                      (not (= frac 0)))
                 (and (<= (rfix lo) frac)
                      (<= frac (rfix hi)))))
-     :enable acl2::pos-fix
      :induct (frac-alpha-d-nonzero-in alpha n lo hi)))
+
+(defrule frac-alpha-d-nonzero-in-corr
+  (implies (and (frac-alpha-d-nonzero-in alpha n lo hi)
+                (pos-rationalp alpha)
+                (natp d)
+                (< d (nfix n))
+                (integerp m)
+                (rationalp lo)
+                (<= lo 1)
+                (rationalp hi)
+                (<= 0 hi)
+                (< (+ (1- m) hi) (* alpha d))
+                (< (* alpha d) (+ m lo)))
+           (equal (* alpha d) m))
+  :rule-classes ()
+  :cases ((= (fl (* alpha d)) (- m 1))
+          (= (fl (* alpha d)) m))
+  :use frac-alpha-d-nonzero-in-necc
+  :enable (frac-alpha-d frac))
 
 (acl2::with-arith5-help
  (defruled frac-alpha-d-even
@@ -636,29 +651,35 @@
     ((q (ifix q))
      ((unless (<= (Qmin f) q)) (mv 1 0))
      (ulp2 (expt 2 q))
-     (r (1- (ordD ulp2)))
-     (ulpD (expt (D) r))
+     (k (1- (ordD ulp2)))
+     (ulpD (expt (D) k))
      (alpha (/ ulp2 ulpD))
-     (CMax (+ (expt 2 (1+ (P f))) 2))
-     ((mv lo1 hi1) (frac-alpha-d-nonzero-bound alpha CMax))
+     (CbMax (+ (expt 2 (1+ (P f))) 2))
+     ((mv lo1 hi1) (frac-alpha-d-nonzero-bound alpha CbMax))
      ((mv lo2 hi2) (frac-alpha-d-nonzero-bound-f-aux f (1- q))))
     (mv (min lo1 lo2) (max hi1 hi2)))
    ///
    (fty::deffixequiv frac-alpha-d-nonzero-bound-f-aux)
    (verify-guards frac-alpha-d-nonzero-bound-f-aux)
+   (defrule frac-alpha-d-nonzero-bound-f-aux-lo-linear
+     (<= (mv-nth 0 (frac-alpha-d-nonzero-bound-f-aux f q)) 1)
+     :rule-classes :linear)
+   (defrule frac-alpha-d-nonzero-bound-f-aux-hi-linear
+     (<= 0 (mv-nth 1 (frac-alpha-d-nonzero-bound-f-aux f q)))
+     :rule-classes :linear)
    (defrule frac-alpha-d-nonzero-bound-f-aux-correct
      (acl2::b*
       ((ulp2 (expt 2 q))
-       (r (1- (ordD ulp2)))
-       (ulpD (expt (D) r))
+       (k (1- (ordD ulp2)))
+       (ulpD (expt (D) k))
        (alpha (/ ulp2 ulpD))
-       (CMax1 (+ (expt 2 (1+ (P f))) 3))
+       (CbMax+1 (+ (expt 2 (1+ (P f))) 3))
        ((mv lo hi) (frac-alpha-d-nonzero-bound-f-aux f qmax)))
       (implies (and (integerp qmax)
                     (integerp q)
                     (<= (Qmin f) q)
                     (<= q qmax))
-               (frac-alpha-d-nonzero-in alpha Cmax1 lo hi)))
+               (frac-alpha-d-nonzero-in alpha Cbmax+1 lo hi)))
      :induct (frac-alpha-d-nonzero-bound-f-aux f qmax)
      :enable frac-alpha-d-nonzero-bound-f-aux
      :hints
@@ -698,159 +719,125 @@
   ///
   (fty::deffixequiv frac-alpha-d-nonzero-bound-f)
   (acl2::with-arith5-help
-   (defruled frac-alpha-d-nonzero-bound-f-correct
+   (defrule frac-alpha-d-nonzero-bound-f-correct
      (acl2::b*
-      ((ulp2 (expt 2 q))
-       (r (1- (ordD ulp2)))
-       (ulpD (expt (D) r))
+      ((ulp2 (expt 2 (+ qb 1)))
+       (k (1- (ordD ulp2)))
+       (ulpD (expt (D) k))
        (alpha (/ ulp2 ulpD))
-       (CMax (+ (expt 2 (1+ (P f))) 2))
-       ((mv lo hi) (frac-alpha-d-nonzero-bound-f f))
-       (frac (frac-alpha-d alpha c)))
-      (implies (and (integerp q)
-                   (<= (Qmin f) q)
-                   (<= q (Qmax f))
-                   (natp c)
-                   (<= c CMax)
-                   (not (= frac 0)))
-               (and (<= lo frac)
-                    (<= frac hi))))
+       (cbMax (+ (expt 2 (1+ (P f))) 2))
+       ((mv lo hi) (frac-alpha-d-nonzero-bound-f f)))
+      (implies (and (integerp qb)
+                   (<= (- (Qmin f) 1) qb)
+                   (<= qb (- (Qmax f) 1))
+                   (natp cb)
+                   (<= cb cbMax)
+                   (integerp m)
+                   (< (+ (- m 1) hi) (* alpha cb))
+                   (< (* alpha cb) (+ m lo)))
+               (equal (* alpha cb) m)))
+     :rule-classes ()
      :use
-     ((:instance frac-alpha-d-nonzero-in-necc
-                 (alpha (/ (expt 2 q) (expt (D) (1- (ordD (expt 2 q))))))
+     ((:instance frac-alpha-d-nonzero-in-corr
+                 (alpha (/ (expt 2 (+ qb 1))
+                           (expt (D) (1- (ordD (expt 2 (+ qb 1)))))))
                  (n (+ (expt 2 (1+ (P f))) 3))
-                 (i c)
+                 (d cb)
                  (lo (mv-nth 0 (frac-alpha-d-nonzero-bound-f f)))
                  (hi (mv-nth 1 (frac-alpha-d-nonzero-bound-f f))))
       (:instance frac-alpha-d-nonzero-bound-f-aux-correct
+                 (q (+ qb 1))
                  (qmax (Qmax f)))))))
 
-(defruled frac-alpha-d-nonzero-bound-hp-correct
+(defrule frac-alpha-d-nonzero-bound-hp-correct
   (acl2::b*
    ((f (hp))
     (lo 1/65536)
-    (hi (- 1 1/65536))
-    (ulp2 (expt 2 q))
+    (hi 1/65536)
+    (ulp2 (expt 2 (+ qb 1)))
     (r (1- (ordD ulp2)))
     (ulpD (expt (D) r))
     (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (<= lo frac)
-                 (<= frac hi))))
+    (cbMax (+ (expt 2 (1+ (P f))) 2)))
+   (implies (and (integerp qb)
+                 (<= (- (Qmin f) 1) qb)
+                 (<= qb (- (Qmax f) 1))
+                 (natp cb)
+                 (<= cb cbMax)
+                 (integerp m)
+                 (< (- m hi) (* alpha cb))
+                 (< (* alpha cb) (+ m lo)))
+            (equal (* alpha cb) m)))
+  :rule-classes ()
   :enable hp
   :use (:instance frac-alpha-d-nonzero-bound-f-correct (f (hp))))
 
-(defruled frac-alpha-d-nonzero-bound-sp-correct
+(rule
+ (= 1/65536 #fx1p-16))
+
+(defrule frac-alpha-d-nonzero-bound-sp-correct
   (acl2::b*
    ((f (sp))
     (lo 43/152587890625)
-    (hi (- 1 47/152587890625))
-    (ulp2 (expt 2 q))
+    (hi 47/152587890625)
+    (ulp2 (expt 2 (+ qb 1)))
     (r (1- (ordD ulp2)))
     (ulpD (expt (D) r))
     (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (<= lo frac)
-                 (<= frac hi))))
+    (cbMax (+ (expt 2 (1+ (P f))) 2)))
+   (implies (and (integerp qb)
+                 (<= (- (Qmin f) 1) qb)
+                 (<= qb (- (Qmax f) 1))
+                 (natp cb)
+                 (<= cb cbMax)
+                 (integerp m)
+                 (< (- m hi) (* alpha cb))
+                 (< (* alpha cb) (+ m lo)))
+            (equal (* alpha cb) m)))
+  :rule-classes ()
   :enable sp
   :use (:instance frac-alpha-d-nonzero-bound-f-correct (f (sp))))
 
-(defruled frac-alpha-d-nonzero-bound-dp-correct
+(rule
+ (and (< #fx1.35D8FFE057C8Ap-32 43/152587890625)
+      (< #fx1.52ABB27830526p-32 47/152587890625)))
+
+(defrule frac-alpha-d-nonzero-bound-dp-correct
   (acl2::b*
    ((f (dp))
     (lo 1323359619378521/17763568394002504646778106689453125)
-    (hi (- 1 1857975741265209/17763568394002504646778106689453125))
-    (ulp2 (expt 2 q))
+    (hi 1857975741265209/17763568394002504646778106689453125)
+    (ulp2 (expt 2 (+ qb 1)))
     (r (1- (ordD ulp2)))
     (ulpD (expt (D) r))
     (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (<= lo frac)
-                 (<= frac hi))))
+    (cbMax (+ (expt 2 (1+ (P f))) 2)))
+   (implies (and (integerp qb)
+                 (<= (- (Qmin f) 1) qb)
+                 (<= qb (- (Qmax f) 1))
+                 (natp cb)
+                 (<= cb cbMax)
+                 (integerp m)
+                 (< (- m hi) (* alpha cb))
+                 (< (* alpha cb) (+ m lo)))
+            (equal (* alpha cb) m)))
+  :rule-classes ()
   :enable dp
   :use (:instance frac-alpha-d-nonzero-bound-f-correct (f (dp))))
 
-(defruled frac-alpha-d-nonzero-bound-hp-correct-corr
-  (acl2::b*
-   ((f (hp))
-    (lo (expt 2 -16))
-    (hi (- 1 (expt 2 -16)))
-    (ulp2 (expt 2 q))
-    (r (1- (ordD ulp2)))
-    (ulpD (expt (D) r))
-    (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (<= lo frac)
-                 (<= frac hi))))
-  :use frac-alpha-d-nonzero-bound-hp-correct)
+#|
+(include-book "std/strings/hexify" :dir :system)
+(acl2::b*
+ (((mv lo hi) (frac-alpha-d-nonzero-bound-f (dp))))
+ (list
+  lo
+  (- 1 hi)
+  (str::hexify (fl (sigc lo 53 2)))
+  (str::hexify (fl (sigc (- 1 hi) 53 2)))))
+|#
 
-(defruled frac-alpha-d-nonzero-bound-sp-correct-corr
-  (acl2::b*
-   ((f (sp))
-    (lo (expt 2 -32))
-    (hi (- 1 (expt 2 -32)))
-    (ulp2 (expt 2 q))
-    (r (1- (ordD ulp2)))
-    (ulpD (expt (D) r))
-    (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (< lo frac)
-                 (< frac hi))))
-  :use frac-alpha-d-nonzero-bound-sp-correct)
-
-(defruled frac-alpha-d-nonzero-bound-dp-correct-corr
-  (acl2::b*
-   ((f (dp))
-    (lo (expt 2 -64))
-    (hi (- 1 (expt 2 -64)))
-    (ulp2 (expt 2 q))
-    (r (1- (ordD ulp2)))
-    (ulpD (expt (D) r))
-    (alpha (/ ulp2 ulpD))
-    (CMax (+ (expt 2 (1+ (P f))) 2))
-    (frac (frac-alpha-d alpha c)))
-   (implies (and (integerp q)
-                 (<= (Qmin f) q)
-                 (<= q (Qmax f))
-                 (natp c)
-                 (<= c CMax)
-                 (not (= frac 0)))
-            (and (< lo frac)
-                 (< frac hi))))
-  :use frac-alpha-d-nonzero-bound-dp-correct)
-
+(rule
+ (and (< #fx1.5FCF304F8E95Cp-64
+         1323359619378521/17763568394002504646778106689453125)
+      (< #fx1.EDEF46CE33883p-64
+         1857975741265209/17763568394002504646778106689453125)))
