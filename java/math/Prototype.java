@@ -14,6 +14,13 @@ public class Prototype {
         return (int) ((C * e) >> Q) + 1;
     }
 
+    private static int ord2pow10(int e) {
+        // Constants suggested by Raffaello Giulietti
+        long Q = 40;
+        long C = 3_652_498_566_964L;
+        return (int) ((C * e) >> Q) + 1;
+    }
+
     private static class NumCQ {
 
         final int q;
@@ -690,20 +697,43 @@ public class Prototype {
             cbr = cb.add(BigInteger.valueOf(2));
         }
         int k = ord10pow2(qb + 1) - 1;
+        int ord2alpha = qb + 1 + ord2pow10(-k);
+        assert 1 <= ord2alpha && ord2alpha <= 4; // 1 <= alpha < 10
         NumCQ p5 = Prototype.powers5.get(-k - MIN_POW_5);
+        assert p5.q == k + ord2alpha - qb - 127;
         int qq = qb + p5.q - k;
+        assert qq == ord2alpha - 127;
         // Fixed point approximation of Vl,V,Vr with 65 fractional digits
         int sh = -qq - 65;
+        assert sh == 62 - ord2alpha;
         BigInteger Vl = p5.c.multiply(cbl).shiftRight(sh);
         BigInteger V = p5.c.multiply(cb).shiftRight(sh);
         BigInteger Vr = p5.c.multiply(cbr).shiftRight(sh);
+        // Vl, V, Vr rounded to odd (von Newmann rounding) with 2 fractional digits
+        // https://www.lri.fr/~melquion/doc/05-imacs17_1-expose.pdf
+        long vnl = Vl.shiftRight(63).longValue();
+        if ((Vl.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
+            vnl |= 1;
+        }
+        long vn = V.shiftRight(63).longValue();
+        if ((V.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
+            vn |= 1;
+        }
+        long vnr = Vr.shiftRight(63).longValue();
+        if ((Vr.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
+            vnr |= 1;
+        }
         long s = V.shiftRight(65).longValue();
+        assert s == vn >> 2;
         long t = s + 1;
         long s10 = s / 10;
+        assert s10 == vn / 40;
         long t10 = s10 + 1;
         if (s10 >= 10) {
             boolean uin10 = (Vl.compareTo(BigInteger.valueOf(s10 * 10).shiftLeft(65)) + out) <= 0;
+            assert uin10 == (vnl + out <= s10 * 40);
             boolean win10 = (BigInteger.valueOf(t10 * 10).shiftLeft(65).compareTo(Vr) + out) <= 0;
+            assert win10 == (t10 * 40 + out <= vnr);
             if (uin10 || win10) {
                 if (!win10) {
                     return toBigDecimal(sgn, s10, k + 1);
@@ -721,6 +751,7 @@ public class Prototype {
                     return toBigDecimal(sgn, t10, k + 1);
                 }
                 int cmp10 = V.compareTo(BigInteger.valueOf((s10 + t10) * 10).shiftLeft(64));
+                assert cmp10 == Long.compare(vn, (s10 + t10) * 20);
                 if (cmp10 < 0) {
                     return toBigDecimal(sgn, s10, k + 1);
                 }
@@ -732,7 +763,9 @@ public class Prototype {
             return toBigDecimal(sgn, s == 4 ? 49 : 99, k - 1);
         }
         boolean uin = (Vl.compareTo(BigInteger.valueOf(s).shiftLeft(65)) + out) <= 0;
+        assert uin == (vnl + out <= s * 4);
         boolean win = (BigInteger.valueOf(t).shiftLeft(65).compareTo(Vr) + out) <= 0;
+        assert win == (t * 4 + out <= vnr);
         assert uin || win; // because 10^r <= 2^q
         if (!win) {
             return toBigDecimal(sgn, s, k);
@@ -741,6 +774,7 @@ public class Prototype {
             return toBigDecimal(sgn, t, k);
         }
         int cmp = V.compareTo(BigInteger.valueOf(s + t).shiftLeft(64));
+        assert cmp == Long.compare(vn, (s + t) * 2);
         if (cmp < 0) {
             return toBigDecimal(sgn, s, k);
         }
