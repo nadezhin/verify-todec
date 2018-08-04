@@ -350,6 +350,26 @@
                (expt (D/2) (- (k@ enc)))))
      :enable expt-D-as-expt-D/2))))
 
+(define ord2alpha@
+  ((enc acl2::ubyte64p))
+  :returns (ord2alpha@ posp :rule-classes :type-prescription
+                       :hints (("goal" :in-theory (enable ord2)
+                                :use (:instance expe-monotone
+                                                (b 2)
+                                                (x 1)
+                                                (y (alpha@ enc))))))
+  (ord2 (alpha@ enc))
+  ///
+  (fty::deffixequiv ord2alpha@)
+  (defrule ord2alpha@-linear
+    (<= (ord2alpha@ enc) 4)
+    :rule-classes :linear
+    :enable (ord2 (D))
+    :use (:instance expe-monotone
+                    (b 2)
+                    (x (alpha@ enc))
+                    (y 10))))
+
 (acl2::with-arith5-help
  (define p5@
    ((enc acl2::ubyte64p))
@@ -389,54 +409,73 @@
      :rule-classes ((:linear :trigger-terms ((p5.c@ enc))))
      :enable (alpha@-as-p5@ p5.q@ cg-def sigc sigm expq))))
 
-(define qq@
+(define prod@
   ((enc acl2::ubyte64p))
-  :returns (qq@ integerp :rule-classes :type-prescription)
-  (+ (qb@ enc) (p5.q@ enc) (- (k@ enc)))
+  :returns (prod@ natp :rule-classes :type-prescription)
+  (* (p5.c@ enc) (cb@ enc))
   ///
-  (fty::deffixequiv qq@)
-  (acl2::with-arith5-help
-   (defruled p5.c@-linear
-     (let ((a (* 1/2 (alpha@ enc) (expt 2 (- (qq@ enc))))))
-       (and (<= a (p5.c@ enc))
-            (< (p5.c@ enc) (1+ a))))
-     :rule-classes ((:linear :trigger-terms ((p5.c@ enc))))
-     :enable (alpha@-as-p5@ p5.q@ p5.c@ cg-def sigc sigm expq))))
+  (fty::deffixequiv prod@))
 
-(define sh@
+(define prodl@
   ((enc acl2::ubyte64p))
-  :returns (sh@ integerp :rule-classes :type-prescription)
-  (- (- (qq@ enc)) 65)
+  :returns (prod@ integerp :rule-classes :type-prescription)
+  (* (p5.c@ enc) (cbl@ enc))
   ///
-  (fty::deffixequiv sh@))
+  (fty::deffixequiv prodl@))
 
-(define Vl@
+(define prodr@
   ((enc acl2::ubyte64p))
-  :returns (Vl@ integerp :rule-classes :type-prescription)
-  (ash (* (p5.c@ enc) (cbl@ enc)) (- (sh@ enc)))
+  :returns (prod@ natp :rule-classes :type-prescription)
+  (* (p5.c@ enc) (cbr@ enc))
   ///
-  (fty::deffixequiv Vl@))
+  (fty::deffixequiv prodr@))
 
 (acl2::with-arith5-help
- (define V@
+ (define vn@
    ((enc acl2::ubyte64p))
-   :returns (V@ natp :rule-classes :type-prescription)
-   (ash (* (p5.c@ enc) (cb@ enc)) (- (sh@ enc)))
+   :returns (vn@ natp :rule-classes :type-prescription)
+   (acl2::b*
+    ((prod (prod@ enc))
+     (ord2 (ord2alpha@ enc))
+     (vn (ash prod (- ord2 125))))
+    (if (>= (acl2::loghead (- 126 ord2) prod) (expt 2 (- 62 ord2)))
+       (logior vn 1)
+      vn))
    ///
-   (fty::deffixequiv V@)))
+   (fty::deffixequiv vn@)))
 
 (acl2::with-arith5-help
- (define Vr@
+ (define vnl@
    ((enc acl2::ubyte64p))
-   :returns (Vr@ natp :rule-classes :type-prescription)
-   (ash (* (p5.c@ enc) (cbr@ enc)) (- (sh@ enc)))
+   :returns (vnl@ integerp :rule-classes :type-prescription)
+   (acl2::b*
+    ((prodl (prodl@ enc))
+     (ord2 (ord2alpha@ enc))
+     (vnl (ash prodl (- ord2 126))))
+    (if (>= (acl2::loghead (- 126 ord2) prodl) (expt 2 (- 62 ord2)))
+       (logior vnl 1)
+      vnl))
    ///
-   (fty::deffixequiv Vr@)))
+   (fty::deffixequiv vnl@)))
+
+(acl2::with-arith5-help
+ (define vnr@
+   ((enc acl2::ubyte64p))
+   :returns (vnr@ natp :rule-classes :type-prescription)
+   (acl2::b*
+    ((prodr (prodr@ enc))
+     (ord2 (ord2alpha@ enc))
+     (vnr (ash prodr (- ord2 126))))
+    (if (>= (acl2::loghead (- 126 ord2) prodr) (expt 2 (- 62 ord2)))
+       (logior vnr 1)
+      vnr))
+   ///
+   (fty::deffixequiv vnr@)))
 
 (define s@
   ((enc acl2::ubyte64p))
   :returns (s@ natp :rule-classes :type-prescription)
-  (ash (V@ enc) -65)
+  (ash (vn@ enc) -2)
   ///
   (fty::deffixequiv s@))
 
@@ -450,60 +489,56 @@
 (define s10@
   ((enc acl2::ubyte64p))
   :returns (s10@ natp :rule-classes :type-prescription)
-  (fl (/ (s@ enc) 10))
+  (- (s@ enc) (mod (s@ enc) 10))
   ///
   (fty::deffixequiv s10@))
 
 (define t10@
   ((enc acl2::ubyte64p))
   :returns (t10@ posp :rule-classes :type-prescription)
-  (+ (s10@ enc) 1)
+  (+ (s10@ enc) 10)
   ///
   (fty::deffixequiv t10@))
 
 (define uin10@
   ((enc acl2::ubyte64p))
   :returns (uin10@ booleanp :rule-classes :type-prescription)
-  (<= (+ (signum (- (Vl@ enc) (* (s10@ enc) (ash 10 65)))) (out@ enc))
-      0)
+  (<= (+ (vnl@ enc) (out@ enc)) (* 2 (s10@ enc)))
   ///
   (fty::deffixequiv uin10@))
 
 (define win10@
   ((enc acl2::ubyte64p))
   :returns (win10@ booleanp :rule-classes :type-prescription)
-  (<= (+ (signum (- (* (t10@ enc) (ash 10 65)) (Vr@ enc))) (out@ enc))
-      0)
+  (<= (+ (* 2 (t10@ enc)) (out@ enc)) (vnr@ enc))
   ///
   (fty::deffixequiv win10@))
 
 (define cmp10@
   ((enc acl2::ubyte64p))
-  :returns (win@ integerp :rule-classes :type-prescription)
-  (signum (- (V@ enc) (* (+ (s10@ enc) (t10@ enc)) (ash 10 64))))
+  :returns (cmp10@ integerp :rule-classes :type-prescription)
+  (- (vn@ enc) (* 2 (+ (s10@ enc) (t10@ enc))))
   ///
   (fty::deffixequiv cmp10@))
 
 (define uin@
   ((enc acl2::ubyte64p))
   :returns (uin@ booleanp :rule-classes :type-prescription)
-  (<= (+ (signum (- (Vl@ enc) (* (s@ enc) (ash 1 65)))) (out@ enc))
-      0)
+  (<= (+ (vnl@ enc) (out@ enc)) (* 2 (s@ enc)))
   ///
   (fty::deffixequiv uin@))
 
 (define win@
   ((enc acl2::ubyte64p))
   :returns (win@ booleanp :rule-classes :type-prescription)
-  (<= (+ (signum (- (* (t@ enc) (ash 1 65)) (Vr@ enc))) (out@ enc))
-      0)
+  (<= (+ (* 2 (t@ enc)) (out@ enc)) (vnr@ enc))
   ///
   (fty::deffixequiv win@))
 
 (define cmp@
   ((enc acl2::ubyte64p))
   :returns (win@ integerp :rule-classes :type-prescription)
-  (signum (- (V@ enc) (* (+ (s@ enc) (t@ enc)) (ash 1 64))))
+  (- (vn@ enc) (* 2 (+ (s@ enc) (t@ enc))))
   ///
   (fty::deffixequiv cmp@))
 
@@ -517,27 +552,27 @@
   (acl2::b*
    ((f (dp))
     ((when (zerp (enc@ enc) f)) 0)
-    ((when (and (>= (s10@ enc) 10)
+    ((when (and (>= (s@ enc) 100)
                 (or (uin10@ enc)
                     (win10@ enc))))
      (cond
       ((not (win10@ enc))
-       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (+ (k@ enc) 1)))
+       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (k@ enc)))
       ((not (uin10@ enc))
-       (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (+ (k@ enc) 1)))
+       (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (k@ enc)))
       ((not (and (uin10@ enc) (win10@ enc))) nil) ; AssertionError
       ((not (= (qb@ enc) (- (q@ enc) 2))) nil) ; AssertionError
       ((= (mod (s10@ enc) 10) 0)
-       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (+ (k@ enc) 1)))
+       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (k@ enc)))
       ((= (mod (t10@ enc) 10) 0)
-       (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (+ (k@ enc) 1)))
+       (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (k@ enc)))
       ((< (cmp10@ enc) 0)
-       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (+ (k@ enc) 1)))
-      (t (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (+ (k@ enc) 1)))))
-    ((when (= (s10@ enc) 0))
-     (Prototype.toBigDecimal (sgn@ enc)
-                             (if (= (s@ enc) 4) 49 99)
-                             (- (k@ enc) 1)))
+       (Prototype.toBigDecimal (sgn@ enc) (s10@ enc) (k@ enc)))
+      (t (Prototype.toBigDecimal (sgn@ enc) (t10@ enc) (k@ enc)))))
+    ((when (< (s@ enc) 10))
+     (case (s@ enc)
+       (4 (Prototype.toBigDecimal (sgn@ enc) 49 (- (k@ enc) 1)))
+       (9 (Prototype.toBigDecimal (sgn@ enc) 99 (- (k@ enc) 1)))))
     ((unless (or (uin@ enc) (win@ enc))) nil) ; AssertionError
     ((when (not (win@ enc)))
      (Prototype.toBigDecimal (sgn@ enc) (s@ enc) (k@ enc)))
@@ -551,8 +586,7 @@
      (Prototype.toBigDecimal (sgn@ enc) (s@ enc) (k@ enc))))
    (Prototype.toBigDecimal (sgn@ enc) (t@ enc) (k@ enc)))
   ///
-  (fty::deffixequiv Prototype.toDecimal
-                    :hints (("goal" :in-theory (disable (tau-system))))))
+  (fty::deffixequiv Prototype.toDecimal))
 
 (define check
   ((enc acl2::ubyte64p))

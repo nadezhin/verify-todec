@@ -23,25 +23,24 @@ public class Prototype {
 
     private static class NumCQ {
 
-        final int q;
         final BigInteger c;
+        final long ch, cl;
 
-        NumCQ(int q, BigInteger c) {
-            this.q = q;
-            this.c = c;
+        NumCQ(int q, long ch, long cl) {
+            this.ch = ch;
+            this.cl = cl;
+            c = BigInteger.valueOf(ch).shiftLeft(63).or(BigInteger.valueOf(cl));
         }
     }
 
     static final int MIN_POW_5 = -292;
 
     // Floating point approximation of powers of 5 with 126-bit precision
-    private static List<NumCQ> powers5 = new ArrayList<>();
+    private static final List<NumCQ> powers5 = new ArrayList<>();
 
     private static void p(int q, long ch, long cl) {
         assert ch >= 0 && cl >= 0;
-        BigInteger c = BigInteger.valueOf(ch);
-        c = c.shiftLeft(63).or(BigInteger.valueOf(cl));
-        powers5.add(new NumCQ(q, c));
+        powers5.add(new NumCQ(q, ch, cl));
     }
 
     static {
@@ -696,76 +695,83 @@ public class Prototype {
             cbl = cb.subtract(BigInteger.ONE);
             cbr = cb.add(BigInteger.valueOf(2));
         }
+
         int k = ord10pow2(qb + 1) - 1;
         int ord2alpha = qb + 1 + ord2pow10(-k);
         assert 1 <= ord2alpha && ord2alpha <= 4; // 1 <= alpha < 10
+        // p5.c is approximation of alpha with 127 - ord2alpha fractional bits
         NumCQ p5 = Prototype.powers5.get(-k - MIN_POW_5);
-        assert p5.q == k + ord2alpha - qb - 127;
-        int qq = qb + p5.q - k;
-        assert qq == ord2alpha - 127;
-        // Fixed point approximation of Vl,V,Vr with 65 fractional digits
-        int sh = -qq - 65;
-        assert sh == 62 - ord2alpha;
-        BigInteger Vl = p5.c.multiply(cbl).shiftRight(sh);
-        BigInteger V = p5.c.multiply(cb).shiftRight(sh);
-        BigInteger Vr = p5.c.multiply(cbr).shiftRight(sh);
-        // Vl, V, Vr rounded to odd (von Newmann rounding) with 2 fractional digits
+        // approximations of alpha*cb, alpha*cbl, alpha*cbr with 127-ord2alpha fractional bits
+        BigInteger prod = p5.c.multiply(cb);
+        BigInteger prodl = p5.c.multiply(cbl);
+        BigInteger prodr = p5.c.multiply(cbr);
+
+        // Mask to drop integer bits and first fractional bit
+        BigInteger mask = BigInteger.ONE.shiftLeft(126 - ord2alpha).subtract(BigInteger.ONE);
+        // 2^-65 with 127-ord2alpha
+        BigInteger threshold = BigInteger.ONE.shiftLeft(62 - ord2alpha);
+        // vn, vnl, vnr are alpha*cb, alpha*cbl, alphaZ*cbr rounded to odd (von Newmann rounding)
         // https://www.lri.fr/~melquion/doc/05-imacs17_1-expose.pdf
-        long vnl = Vl.shiftRight(63).longValue();
-        if ((Vl.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
-            vnl |= 1;
-        }
-        long vn = V.shiftRight(63).longValue();
-        if ((V.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
+        // vn has 2 fractional bits
+        long vn = prod.shiftRight(125 - ord2alpha).longValue();
+        if (prod.and(mask).compareTo(threshold) >= 0) {
             vn |= 1;
         }
-        long vnr = Vr.shiftRight(63).longValue();
-        if ((Vr.longValue() & 0x7FFFFFFFFFFFFFFFL) != 0) {
+        // vnl has 1 fractional bit
+        long vnl = prodl.shiftRight(126 - ord2alpha).longValue();
+        if (prodl.and(mask).compareTo(threshold) >= 0) {
+            vnl |= 1;
+        }
+        // vnr has 1 fractional bit
+        long vnr = prodr.shiftRight(126 - ord2alpha).longValue();
+        if (prodr.and(mask).compareTo(threshold) >= 0) {
             vnr |= 1;
         }
-        long s = V.shiftRight(65).longValue();
-        assert s == vn >> 2;
+
+        long s = vn >> 2;
         long t = s + 1;
-        long s10 = s / 10;
-        assert s10 == vn / 40;
-        long t10 = s10 + 1;
-        if (s10 >= 10) {
-            boolean uin10 = (Vl.compareTo(BigInteger.valueOf(s10 * 10).shiftLeft(65)) + out) <= 0;
-            assert uin10 == (vnl + out <= s10 * 40);
-            boolean win10 = (BigInteger.valueOf(t10 * 10).shiftLeft(65).compareTo(Vr) + out) <= 0;
-            assert win10 == (t10 * 40 + out <= vnr);
+        if (s >= 100) {
+            long s10 = s - s % 10;
+            long t10 = s10 + 10;
+            boolean uin10 = vnl + out <= s10 * 2;
+            boolean win10 = t10 * 2 + out <= vnr;
             if (uin10 || win10) {
                 if (!win10) {
-                    return toBigDecimal(sgn, s10, k + 1);
+                    return toBigDecimal(sgn, s10, k);
                 }
                 if (!uin10) {
-                    return toBigDecimal(sgn, t10, k + 1);
+                    return toBigDecimal(sgn, t10, k);
                 }
                 assert uin10 && win10;
                 // This is possible only for powers of 2 when Rv may be wider than 10^{r+1}
                 assert qb == q - 2;
-                if (s10 % 10 == 0) {
-                    return toBigDecimal(sgn, s10, k + 1);
+                if (s10 % 100 == 0) {
+                    return toBigDecimal(sgn, s10, k);
                 }
-                if (t10 % 10 == 0) {
-                    return toBigDecimal(sgn, t10, k + 1);
+                if (t10 % 100 == 0) {
+                    return toBigDecimal(sgn, t10, k);
                 }
-                int cmp10 = V.compareTo(BigInteger.valueOf((s10 + t10) * 10).shiftLeft(64));
-                assert cmp10 == Long.compare(vn, (s10 + t10) * 20);
+                long cmp10 = vn - ((s10 + t10) * 2);
                 if (cmp10 < 0) {
-                    return toBigDecimal(sgn, s10, k + 1);
+                    return toBigDecimal(sgn, s10, k);
                 }
                 assert cmp10 > 0; // cmp10 == 0 doesn't happen for powers of two
-                return toBigDecimal(sgn, t10, k + 1);
+                return toBigDecimal(sgn, t10, k);
             }
-        } else if (s10 == 0) {
+        } else if (s < 10) {
             // Double.MIN_VALUE or Double.MIN_VALUE*2
-            return toBigDecimal(sgn, s == 4 ? 49 : 99, k - 1);
+            assert k == -324;
+            switch ((int) s) {
+                case 4:
+                    return toBigDecimal(sgn, 49, k - 1); // 4.9e-324 MIN_VALUE
+                case 9:
+                    return toBigDecimal(sgn, 99, k - 1); // 9.9e-324 MIN_VALUE*2
+                default:
+                    throw new AssertionError();
+            }
         }
-        boolean uin = (Vl.compareTo(BigInteger.valueOf(s).shiftLeft(65)) + out) <= 0;
-        assert uin == (vnl + out <= s * 4);
-        boolean win = (BigInteger.valueOf(t).shiftLeft(65).compareTo(Vr) + out) <= 0;
-        assert win == (t * 4 + out <= vnr);
+        boolean uin = vnl + out <= s * 2;
+        boolean win = t * 2 + out <= vnr;
         assert uin || win; // because 10^r <= 2^q
         if (!win) {
             return toBigDecimal(sgn, s, k);
@@ -773,8 +779,7 @@ public class Prototype {
         if (!uin) {
             return toBigDecimal(sgn, t, k);
         }
-        int cmp = V.compareTo(BigInteger.valueOf(s + t).shiftLeft(64));
-        assert cmp == Long.compare(vn, (s + t) * 2);
+        long cmp = vn - ((s + t) << 1);
         if (cmp < 0) {
             return toBigDecimal(sgn, s, k);
         }
