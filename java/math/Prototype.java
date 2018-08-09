@@ -23,13 +23,12 @@ public class Prototype {
 
     private static class NumCQ {
 
-        final BigInteger c;
-        final long ch, cl;
+        final BigInteger c, ch, cl;
 
-        NumCQ(int q, long ch, long cl) {
-            this.ch = ch;
-            this.cl = cl;
-            c = BigInteger.valueOf(ch).shiftLeft(63).or(BigInteger.valueOf(cl));
+        NumCQ(int q, long lch, long lcl) {
+            ch = BigInteger.valueOf(lch);
+            cl = BigInteger.valueOf(lcl);
+            c = ch.shiftLeft(63).or(cl);
         }
     }
 
@@ -676,28 +675,170 @@ public class Prototype {
         boolean sgn = bits < 0;
         int expf = ((int) (bits >> 52) & 0x7ff);
         long manf = bits & 0xfffffffffffffL;
+        if (manf == 0 && expf != 0) {
+            return casePower2(sgn, expf);
+        }
         int q = expf == 0 ? -1074 : expf - 1075;
         BigInteger c = BigInteger.valueOf(expf == 0
                 ? manf
                 : manf + 0x10000000000000L);
-        boolean odd = c.testBit(0);
-        int out = odd ? 1 : 0;
-        int qb;
-        BigInteger cb, cbl, cbr;
-        if (q == -1074 || !c.equals(BigInteger.ONE.shiftLeft(52))) {
-            qb = q - 1;
-            cb = c.shiftLeft(1);
-            cbl = cb.subtract(BigInteger.ONE);
-            cbr = cb.add(BigInteger.ONE);
-        } else {
-            qb = q - 2;
-            cb = c.shiftLeft(2);
-            cbl = cb.subtract(BigInteger.ONE);
-            cbr = cb.add(BigInteger.valueOf(2));
+        // These are c,(c-1/2),(c+1/2) with 1 fractional bit
+        BigInteger cb = c.shiftLeft(1);
+        BigInteger cbl = cb.subtract(BigInteger.ONE);
+        BigInteger cbr = cb.add(BigInteger.ONE);
+        int out = (int) (manf & 1);
+
+        int k = ord10pow2(q) - 1;
+        int ord2alpha = q + ord2pow10(-k);
+        assert 1 <= ord2alpha && ord2alpha <= 4; // 1 <= alpha < 10
+        // p5.c is approximation of alpha with 126 - ord2alpha fractional bits
+        // p5.ch is approximation of alpha with 63 - ord2alpha fractional bits
+        NumCQ p5 = Prototype.powers5.get(-k - MIN_POW_5);
+
+        // 2^-65 with 127-ord2alpha fractional bits
+        BigInteger threshold = BigInteger.ONE.shiftLeft(62 - ord2alpha);
+        // vn, vnl, vnr are alpha*c, alpha*(c-1/2), alpha*(c+1/2) rounded to odd (von Newmann rounding)
+        // https://www.lri.fr/~melquion/doc/05-imacs17_1-expose.pdf
+
+        // reducedProd is approximation of alpha*c with 66 fractional bits
+        BigInteger reducedProd = p5.ch.multiply(cb.shiftLeft(2 + ord2alpha));
+        // vn is (von Newmann rounding) of alpha*c with 2 fractional bits
+        long vn = reducedProd.shiftRight(64).longValue();
+        if (-27 <= k && k <= 0) {
+            // ch == alpha*2^63 exactly
+            assert p5.cl.signum() == 0;
+            if (reducedProd.longValue() != 0) {
+                vn |= 1;
+            }
+        } else if ((vn & 1) == 0) {
+            // ch > alpha*2^-63
+            assert p5.cl.signum() != 0;
+            vn |= 1;
+        } else if (reducedProd.longValue() >> (56 + ord2alpha) == -1) {
+            // Approximation of alpha*c is closer to 1/2 grid than possible error bound
+            // which is c*2^{ord2alpha-63} <= 2^{ord2alpha-10}
+            // resort to 126-bit precision
+            // prod is approximation of alpha*c with 127-ord2alpha fractional bits
+            BigInteger prod = p5.c.multiply(cb);
+            vn = prod.shiftRight(125 - ord2alpha).longValue();
+            // Mask to selection trailing bits after 2^-2
+            BigInteger mask = BigInteger.ONE.shiftLeft(125 - ord2alpha).subtract(BigInteger.ONE);
+            // 2^-65 with 127-ord2alpha fractional bits
+            if (prod.and(mask).compareTo(threshold) >= 0) {
+                vn |= 1;
+            }
         }
 
-        int k = ord10pow2(qb + 1) - 1;
-        int ord2alpha = qb + 1 + ord2pow10(-k);
+        // reducedProdl is approximation of alpha*(c-1/2) with 65 fractional bits
+        BigInteger reducedProdl = p5.ch.multiply(cbl.shiftLeft(1 + ord2alpha));
+        // vnl is (von Newmann rounding) of alpha*(c-1/2) with 1 fractional bits
+        long vnl = reducedProdl.shiftRight(64).longValue();
+        if (-27 <= k && k <= 0) {
+            // ch == alpha*2^63 exactly
+            assert p5.cl.signum() == 0;
+            if (reducedProdl.longValue() != 0) {
+                vnl |= 1;
+            }
+        } else if ((vnl & 1) == 0) {
+            // ch > alpha*2^-63
+            assert p5.cl.signum() != 0;
+            vnl |= 1;
+        } else if (reducedProdl.longValue() >> (55 + ord2alpha) == -1) {
+            // Approximation of alpha*(c-1/2) is closer to 1/2 grid than possible error bound
+            // which is (c-1/2)*2^{ord2alpha-63} <= 2^{ord2alpha-10}
+            // resort to 126-bit precision
+            // prodl is approximation of alpha*(c-1/2) with 127-ord2alpha fractional bits
+            BigInteger prodl = p5.c.multiply(cbl);
+            vnl = prodl.shiftRight(126 - ord2alpha).longValue();
+            // Mask to selection trailing bits after 2^-1
+            BigInteger mask = BigInteger.ONE.shiftLeft(126 - ord2alpha).subtract(BigInteger.ONE);
+            if (prodl.and(mask).compareTo(threshold) >= 0) {
+                vnl |= 1;
+            }
+        }
+
+        // reducedProdr is approximation of alpha*(c+1/2) with 65 fractional bits
+        BigInteger reducedProdr = p5.ch.multiply(cbr.shiftLeft(1 + ord2alpha));
+        // vnr is (von Newmann rounding) of alpha*(c+1/2) with 1 fractional bits
+        long vnr = reducedProdr.shiftRight(64).longValue();
+        if (-27 <= k && k <= 0) {
+            // ch == alpha*2^63 exactly
+            assert p5.cl.signum() == 0;
+            if (reducedProdr.longValue() != 0) {
+                vnr |= 1;
+            }
+        } else if ((vnr & 1) == 0) {
+            // ch > alpha*2^-63
+            assert p5.cl.signum() != 0;
+            vnr |= 1;
+        } else if (reducedProdr.longValue() >> (55 + ord2alpha) == -1) {
+            // Approximation of alpha*(c+1/2) is closer to 1/2 grid than possible error bound
+            // which is (c+1/2)*2^{ord2alpha-63} <= 2^{ord2alpha-10}
+            // resort to 126-bit precision
+            // prodr is approximation of alpha*(c+1/2) with 127-ord2alpha fractional bits
+            BigInteger prodr = p5.c.multiply(cbr);
+            vnr = prodr.shiftRight(126 - ord2alpha).longValue();
+            // Mask to selection trailing bits after 2^-1
+            BigInteger mask = BigInteger.ONE.shiftLeft(126 - ord2alpha).subtract(BigInteger.ONE);
+            if (prodr.and(mask).compareTo(threshold) >= 0) {
+                vnr |= 1;
+            }
+        }
+
+        long s = vn >> 2;
+        long t = s + 1;
+        if (s >= 100) {
+            long s10 = s - s % 10;
+            long t10 = s10 + 10;
+            boolean uin10 = vnl + out <= s10 * 2;
+            boolean win10 = t10 * 2 + out <= vnr;
+            if (uin10 || win10) {
+                assert !(uin10 && win10);
+                return toBigDecimal(sgn, uin10 ? s10 : t10, k);
+            }
+        } else if (s < 10) {
+            // Double.MIN_VALUE or Double.MIN_VALUE*2
+            assert k == -324;
+            switch ((int) s) {
+                case 4:
+                    return toBigDecimal(sgn, 49, k - 1); // 4.9e-324 MIN_VALUE
+                case 9:
+                    return toBigDecimal(sgn, 99, k - 1); // 9.9e-324 MIN_VALUE*2
+                default:
+                    throw new AssertionError();
+            }
+        }
+        boolean uin = vnl + out <= s * 2;
+        boolean win = t * 2 + out <= vnr;
+        assert uin || win; // because 10^r <= 2^q
+        if (!win) {
+            return toBigDecimal(sgn, s, k);
+        }
+        if (!uin) {
+            return toBigDecimal(sgn, t, k);
+        }
+        long cmp = vn - ((s + t) << 1);
+        if (cmp < 0) {
+            return toBigDecimal(sgn, s, k);
+        }
+        if (cmp > 0) {
+            return toBigDecimal(sgn, t, k);
+        }
+        if ((s & 1) == 0) {
+            return toBigDecimal(sgn, s, k);
+        }
+        return toBigDecimal(sgn, t, k);
+    }
+
+    static BigDecimal casePower2(boolean sgn, int expf) {
+        int q = expf == 0 ? -1074 : expf - 1075;
+        BigInteger c = BigInteger.ONE.shiftLeft(52);
+        BigInteger cb = c.shiftLeft(2);
+        BigInteger cbl = cb.subtract(BigInteger.ONE);
+        BigInteger cbr = cb.add(BigInteger.valueOf(2));
+
+        int k = ord10pow2(q - 1) - 1;
+        int ord2alpha = q - 1 + ord2pow10(-k);
         assert 1 <= ord2alpha && ord2alpha <= 4; // 1 <= alpha < 10
         // p5.c is approximation of alpha with 127 - ord2alpha fractional bits
         NumCQ p5 = Prototype.powers5.get(-k - MIN_POW_5);
@@ -733,8 +874,8 @@ public class Prototype {
         if (s >= 100) {
             long s10 = s - s % 10;
             long t10 = s10 + 10;
-            boolean uin10 = vnl + out <= s10 * 2;
-            boolean win10 = t10 * 2 + out <= vnr;
+            boolean uin10 = vnl <= s10 * 2;
+            boolean win10 = t10 * 2 <= vnr;
             if (uin10 || win10) {
                 if (!win10) {
                     return toBigDecimal(sgn, s10, k);
@@ -744,7 +885,6 @@ public class Prototype {
                 }
                 assert uin10 && win10;
                 // This is possible only for powers of 2 when Rv may be wider than 10^{r+1}
-                assert qb == q - 2;
                 if (s10 % 100 == 0) {
                     return toBigDecimal(sgn, s10, k);
                 }
@@ -770,8 +910,8 @@ public class Prototype {
                     throw new AssertionError();
             }
         }
-        boolean uin = vnl + out <= s * 2;
-        boolean win = t * 2 + out <= vnr;
+        boolean uin = vnl <= s * 2;
+        boolean win = t * 2 <= vnr;
         assert uin || win; // because 10^r <= 2^q
         if (!win) {
             return toBigDecimal(sgn, s, k);
@@ -790,5 +930,6 @@ public class Prototype {
             return toBigDecimal(sgn, s, k);
         }
         return toBigDecimal(sgn, t, k);
+
     }
 }
