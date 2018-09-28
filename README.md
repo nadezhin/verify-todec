@@ -13,7 +13,7 @@ Definitions and theorems from Section N of the pape are in file acl2/sectionN.li
 Proofs frpm sections 2-10 were checked by ACL2 completely.
 Also cases fullCaseXS and fullCaseXM from the sections 2-11 were checked by ACL2.
 
-At this moment a paper by Michel Hask [9] prompted us that it is possible to avoid multi-precision arithmetic
+At this moment a paper by Michel Hack [9] prompted us that it is possible to avoid multi-precision arithmetic
 using approach from the paper. File acl2/cont-fractions.lisp formalizes some of these ideas in ACL2.
 It considers a linear mapping alpha*d from range of naturals 0 <= d <= max-d to rationals.
 It defines an algorithms which for given alpha and "max-d" returns bound "lo" and "hi"
@@ -27,7 +27,7 @@ This fact is proved using contionous fractions.
 
 Raffaello derived from this theorem that a table of powers of 5 with 126-bit precision is enough
 to correctly implement DoubleToString conversion.
-He designed a new implementation of DoubleToString and FlaotToString.
+He designed a new implementation of DoubleToString and FloatToString.
 Class Natural with implementation of multi-presision natural is no more necessary. Conversions can be performed without memory allocation.
 The WebRev of new Raffaello's algorith is in [10]. The CSR is in [11]. The discussion thread starts from [12].
 
@@ -38,7 +38,7 @@ New Raffaello's and Ulf's algorithms looks similar. It would be interesting to c
 For example the problem of finding "lo" and "hi" is formulated as computing minimum and maximum of a modular product in [14].
 Ideally it would be interesting to formally verify both of them though I am not sure if I find time for this.
 
-Now I hope to prrepare in this repository an ACL2 proof of correctness of the new Raffaello's algoritn
+Now I hope to prepare in this repository an ACL2 proof of correctness of the new Raffaello's algoritn
 which will supplement its human proof which probably will be contained in a new Raffaello's paper.
 
 
