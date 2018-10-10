@@ -122,27 +122,21 @@ i a[i] b[i] s[i] u[i] t[i] v[i]   Lemma 3.5 from Ulf's paper                    
 8    1    1   10  -23  -13   30  0 < d <= 23 ==>  1 <= 10*d % 33 <= 32      0 < d < 33 ==>  1/33 <= frac(alpha*d) <= 32/33
 9    1    0   10  -33  -13   33  0 < d <  33 ==>  1 <= 10*d % 33 <= 32      0 < d < 33 ==>  1/33 <= frac(alpha*d) <= 32/33
 
-By the way this trace doesn't confirm this statement from the paper
-"minmax_euclid returns (1,b−1) if M is greater than or equal to the multiplicative inverse of
-a modulo b, i.e., M>a−1%b".
-For his example the multiplicative inverse of 10 module 33 is 10 itself  10*10 % 33 = 100%33 = 1.
-Let's take M=11. The minmax_euclid algorithm will stop with i=7 and return (a[7],b[7])=(1,2).
-It is not (1,32).
+The paper version of the algorithm differs slightly from Java code found in Ulf's repository.
+1) Java code returns (a[i],b-b[i]) or (0,b-1).
+   So paper should be fixed to return (a[i],b[i]) or (0,1).
+   These words in the paper are not correct.
+   "minmax_euclid returns (1,b−1) if M is greater than or equal to the multiplicative inverse of
+    a modulo b, i.e., M>a−1%b".
+    Counterexample, M=11 . For these a and b module inverse of a is a itself because
+    10*10 % 33 = 100%33 = 1.
+    11>10. However, algorithm will return (1,2) instead of (1,b-1) or (0,1) or something.
 
-Three hypothesis arise from this observation
-1) These statements are unreachable when a<b and M<b :
-  if (b[i]==0) return (1,b-1)
-  if (a[i]==0) return (1,b-1)
-  The algorithm will return earlier.
-2) If two lines of Ulf's algorithm are changed in such a way
-  if (-u[i] > M) return (a[i-1],b[i-1])
-  if (s[i] > M) return (a[i-1],b[i-1])
-  then it will return exact bounds instead of conservative approximation;
-3) Loops A and B in Ulf's algorithm repeatedly subtract a[i+1]=a[i]-b[i] or b[i+1]=b[i]-a[i].
+A hypothesis arise from this observation
+Loops A and B in Ulf's algorithm repeatedly subtract a[i+1]=a[i]-b[i] or b[i+1]=b[i]-a[i].
    If we replace these loops by division with remainder a[i+1]=a[i]%b[i] or b[i+1]=b[i]%a[i]
    we obtain our algorithm frac-alpha-d-bound-aux .
    This implies that our algorithm is only conservative approximation because it doesn't break from these loops.
-I haven't proved or even tested these hypothesis yet. Just TOD.
 
    
    
