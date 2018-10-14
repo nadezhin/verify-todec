@@ -204,343 +204,7 @@
 (EuclidMinMax-max 10 33 33) ; (0 32)
 |#
 
-(define aaa-aux
-  ((maximum natp)
-   (i natp)
-   (a posp)
-   (b posp)
-   (s posp)
-   (nu natp))
-  :measure (+ (nfix a) (nfix b))
-  :returns (mv i
-               (a posp :rule-classes :type-prescription :hyp (posp a))
-               (b posp :rule-classes :type-prescription :hyp (posp b))
-               s
-               nu)
-  (if (and (posp a) (posp b) (not (= a b)) (<= (+ s nu) maximum))
-      (if (> b a)
-          (aaa-aux maximum (1+ i) a (- b a) s (+ s nu))
-       (aaa-aux maximum (1+ i) (- a b) b (+ s nu) nu))
-    (mv i a b s nu)))
-
-
-; (initially a=a0 b=b0 s=1 nu=0)
-; if maximum<1 return (a0,b0)
-; if a0=0 return (0,b0)
-; if a0=n*b0 return (b0,b0)
-; if a0=n*b0+a1 0<a1<b0 next step a=a1 b=b0 s=1 nu=0
-; next step a=a1 b=b0-a1 s=1 nu=1
-; if maximum<2 return (a1,b0-a1)
-; if a1=b0/2 return (b0/2,b0/2)
-; if a1<b0/2 next step a=a1 b=b0-2*a1 s=1 nu=2 (forall 0<d<2 a/b0<=frac(alpha*d)<=(b0-b-a)/b0)
-; if a1>b0/2 next stepp a=2*a1-b0 b=b0-a1 s=2 nu=1 (forall 0<d<2 (a+b)/b0<=frac(alpha*d)<=(b0-b)/b0)
-
-(defund aaa-invariant0 (multiplier modulo maximum a b s nu)
-  (acl2::b*
-   ((alpha (/ multiplier modulo)))
-   (and
-    (natp multiplier)
-    (posp modulo)
-    (natp maximum)
-    (posp a)
-    (posp b)
-    (posp s)
-    (natp nu)
-    (if (posp nu)
-        (and (<= (+ a b) modulo)
-             (= (frac-alpha-d alpha s) (/ a modulo)))
-      (and (= s 1)
-           (= (frac-alpha-d alpha s) (frac (/ a modulo)))))
-    (= (frac-alpha-d alpha nu) (- 1 (/ b modulo)))
-    (implies
-     (<= s nu)
-     (frac-alpha-d-in alpha nu (/ a modulo) (- 1 (/ (+ a b) modulo))))
-    (implies
-     (<= nu s)
-     (frac-alpha-d-in alpha s (/ (+ a b) modulo) (- 1 (/ b modulo)))))))
-
-(defrule aaa-invariant0-fwd
-  (implies (aaa-invariant0 multiplier modulo maximum a b s nu)
-           (and (natp multiplier)
-                (posp modulo)
-                (natp maximum)
-                (integerp a)))
-  :rule-classes :forward-chaining
-  :enable aaa-invariant0)
-
-(acl2::with-arith5-nonlinear-help
- (defruled aaa-invariant0-0-fwd
-   (implies
-    (aaa-invariant0 multiplier modulo maximum a b s 0)
-    (and
-     (= b modulo)
-     (= (mod a b) (mod multiplier b))
-     (= s 1)))
-   :rule-classes :forward-chaining
-   :enable (aaa-invariant0
-            frac-alpha-d frac pos-rational-fix pos-rationalp fl)))
-
-(acl2::with-arith5-help
- (defrule aaa-invariant0-suff-0
-   (implies
-    (and
-     (natp multiplier)
-     (posp modulo)
-     (natp maximum)
-     (posp a)
-     (= (mod a modulo) (mod multiplier modulo))
-     (= b modulo)
-     (= s 1))
-    (aaa-invariant0 multiplier modulo maximum a b s 0))
-   :enable (aaa-invariant0 frac-alpha-d pos-rational-fix pos-rationalp
-                           frac-alpha-d-in frac fl)))
-
-(acl2::with-arith5-help
- (defrule aaa-invariant0-suff-1-1
-   (implies
-    (and
-     (natp multiplier)
-     (posp modulo)
-     (natp maximum)
-     (not (= a 0))
-     (= (+ a b) modulo)
-     (= a (mod multiplier modulo)))
-    (aaa-invariant0 multiplier modulo maximum a b 1 1))
-   :enable (aaa-invariant0 frac-alpha-d
-                           frac-alpha-d-in
-                           pos-rational-fix pos-rationalp frac)))
-
-(acl2::with-arith5-help
- (rule
-  (acl2::b*
-   ((new-a (- a b))
-    (new-s (+ s nu)))
-   (implies
-    (and
-     (aaa-invariant0 multiplier modulo maximum a b s nu)
-     (= nu 0)
-     (> a b))
-    (aaa-invariant0 multiplier modulo maximum new-a b new-s nu)))
-  :enable aaa-invariant0-0-fwd))
-
-(rule
- (acl2::b*
-  ((new-b (- b a))
-   (new-nu (+ s nu)))
-  (implies
-   (and
-    (aaa-invariant0 multiplier modulo maximum a b s nu)
-    (= nu 0)
-    (< 0 a)
-    (< a b))
-   (aaa-invariant0 multiplier modulo maximum a new-b s new-nu)))
- :use (aaa-invariant0-0-fwd
-       (:instance aaa-invariant0-suff-1-1
-                  (b (- b a)))))
-
-(defund aaa-invariant (multiplier modulo maximum a b s nu)
-  (acl2::b*
-   ((alpha (/ multiplier modulo)))
-   (and
-    (natp multiplier)
-    (posp modulo)
-    (natp maximum)
-    (posp a)
-    (posp b)
-    (posp s)
-    (posp nu)
-    (<= (+ a b) modulo)
-    (= (frac-alpha-d alpha s) (/ a modulo))
-    (= (frac-alpha-d alpha nu) (- 1 (/ b modulo)))
-    (implies
-     (<= s nu)
-     (frac-alpha-d-in alpha nu (/ a modulo) (- 1 (/ (+ a b) modulo))))
-    (implies
-     (<= nu s)
-     (frac-alpha-d-in alpha s (/ (+ a b) modulo) (- 1 (/ b modulo)))))))
-
-(acl2::with-arith5-help
- (rule
-  (implies
-   (and (aaa-invariant0 multiplier modulo maximum a b s nu)
-        (not (= nu 0))
-        )
-   (aaa-invariant multiplier modulo maximum a b s nu))
-  :enable (aaa-invariant0
-           aaa-invariant)))
 #|
-(acl2::with-arith5-help
- (rule
-  (acl2::b*
-   ((new-b (- b a))
-    (new-nu (+ s nu)))
-   (implies
-    (and
-     (aaa-invariant0 multiplier modulo maximum a b s nu)
-     (< a b))
-    (aaa-invariant multiplier modulo maximum a new-b s new-nu)))
-  :enable (aaa-invariant0 aaa-invariant frac frac-alpha-d-in frac-alpha-d fl)))
-|#
-(acl2::with-arith5-nonlinear-help
- (rule
-  (acl2::b*
-   ((new-b (- b a))
-    (new-nu (+ s nu))
-    )
-   (implies
-    (and
-     (aaa-invariant a0 b0 maximum a b s nu)
-     (> b a))
-    (aaa-invariant a0 b0 maximum a new-b s new-nu)))
-  :enable (aaa-invariant
-           frac-alpha-d-in-monotonic-by-n)
-  :cases ((<= s nu))
- :hints
- (("subgoal 2"
-   :use (:instance frac-alpha-d-in-lemma
-                   (alpha (/ a0 b0))
-                   (n1 nu)
-                   (n2 s)
-                   (n (+ nu s))
-                   (lo1 (/ (+ a b) b0))
-                   (lo2 (/ (+ a b) b0))
-                   (hi1 (- 1 (/ b b0)))
-                   (hi2 (- 1 (/ b b0)))
-                   (lo (/ a b0))
-                   (hi (- 1 (/ b b0)))))
-  ("subgoal 1"
-   :use (:instance frac-alpha-d-in-lemma
-                   (alpha (/ a0 b0))
-                   (n1 s)
-                   (n2 nu)
-                   (n (+ nu s))
-                   (lo1 (/ a b0))
-                   (lo2 (/ a b0))
-                   (hi1 (- 1 (/ (+ a b) b0)))
-                   (hi2 (- 1 (/ (+ a b) b0)))
-                   (lo (/ a b0))
-                   (hi (- 1 (/ b b0))))))))
-
-(acl2::with-arith5-nonlinear-help
- (rule
-  (acl2::b*
-   ((new-a (- a b))
-    (new-s (+ s nu)))
-   (implies
-    (and
-     (aaa-invariant a0 b0 maximum a b s nu)
-     (< b a))
-    (aaa-invariant a0 b0 maximum new-a b new-s nu)))
-  :enable (aaa-invariant frac-alpha-d-in-monotonic-by-n)
-  :cases ((<= s nu))
- :hints
- (("subgoal 2"
-   :use (:instance frac-alpha-d-in-lemma
-                   (alpha (/ a0 b0))
-                   (n1 nu)
-                   (n2 s)
-                   (n (+ nu s))
-                   (lo1 (/ (+ a b) b0))
-                   (lo2 (/ (+ a b) b0))
-                   (hi1 (- 1 (/ b b0)))
-                   (hi2 (- 1 (/ b b0)))
-                   (lo (/ a b0))
-                   (hi (- 1 (/ b b0)))))
-  ("subgoal 1"
-   :use (:instance frac-alpha-d-in-lemma
-                   (alpha (/ a0 b0))
-                   (n1 s)
-                   (n2 nu)
-                   (n (+ nu s))
-                   (lo1 (/ a b0))
-                   (lo2 (/ a b0))
-                   (hi1 (- 1 (/ (+ a b) b0)))
-                   (hi2 (- 1 (/ (+ a b) b0)))
-                   (lo (/ a b0))
-                   (hi (- 1 (/ b b0))))))))
-
-(define aaa
-  ((maximum natp)
-   (a posp)
-   (b posp))
-  :returns (mv i
-               (a posp :rule-classes :type-prescription :hyp (posp a))
-               (b posp :rule-classes :type-prescription :hyp (posp b))
-               s
-               nu)
-  (aaa-aux maximum 0 a b 1 0))
-#|
-(acl2::b*
- ((a0 43)
-  (b0 33)
-  (maximum 100)
-  (alpha (/ a0 b0))
-  ((mv ?i a b ?s ?nu) (aaa maximum a0 b0))
-  ((mv lo hi) (frac-alpha-d-nonzero-bound alpha (1+ maximum))))
- (list
-  :a0 a0
-  :b0 b0
-  :maximum maximum
-  :a a
-  :b b
-  :lo lo
-  :lo0 (/ a b0)
-  :hi0 (- 1 (/ b b0))
-  :hi hi
-  ))
-
-(acl2::b*
- ((f (dp))
-  (q -1000)
-  (ulp2 (expt 2 q))
-  (k (1- (ordD ulp2)))
-  (ulpD (expt (D) k))
-  (alpha (/ ulp2 ulpD))
-  (a0 (if (<= 0 q) (expt 2 (- q k)) (expt 5 (- k))))
-  (b0 (if (<= 0 q) (expt 5 k) (expt 2 (- k q))))
-  (CbMax (+ (expt 2 (1+ (P f))) 2))
-  (maximum (1- CbMax))
-  ((mv i a b s nu) (aaa maximum a0 b0))
-  ((mv lo hi) (frac-alpha-d-nonzero-bound alpha (1+ maximum))))
- (list
-  :q q
-  :k k
-  :ulp2 ulp2
-  :ulpD ulpD
-  :alpha alpha
-  :a0 a0
-  :b0 b0
-  :maximum maximum
-  :i i
-  :a a
-  :b b
-  :s s
-  :nu nu
-  :lo lo
-  :lo0 (/ a b0)
-  :hi0 (- 1 (/ b b0))
-  :hi hi
-  :dlo (- (/ a b0) lo)
-  :dhi (- hi (- 1 (/ b b0)))
-  ))
-
-  (b0 33)
-  (maximum 100)
-  (alpha (/ a0 b0))
-  ((mv ?i a b ?s ?nu) (aaa maximum a0 b0))
-  ((mv lo hi) (frac-alpha-d-nonzero-bound alpha (1+ maximum))))
- (list
-  :a0 a0
-  :b0 b0
-  :maximum maximum
-  :a a
-  :b b
-  :lo lo
-  :lo0 (/ a b0)
-  :hi0 (- 1 (/ b b0))
-  :hi hi
-  ))
-|#
 (acl2::with-arith5-help
  (define frac-alpha-d-nonzero-bound-f-aaa-aux
    ((f formatp)
@@ -577,6 +241,7 @@
   (frac-alpha-d-nonzero-bound-f-aaa-aux f (Qmax f))
   ///
   (fty::deffixequiv frac-alpha-d-nonzero-bound-f))
+|#
 #|
 (acl2::b*
  ((f (dp))
@@ -702,11 +367,10 @@
     (s+nu (+ s nu))
     (s+nu<=maximum (<= s+nu maximum))
     (a-b (- a b)))
-   (cond ((and s+nu<=maximum (< a-b 0))
-          (bbb-aux maximum (1+ i) a (- a-b) s s+nu))
-         ((and s+nu<=maximum (< 0 a-b))
-          (bbb-aux maximum (1+ i) a-b b s+nu nu))
-         (t (mv i a b s nu))))
+   (cond
+    ((and s+nu<=maximum (< a-b 0)) (bbb-aux maximum (1+ i) a (- a-b) s s+nu))
+    ((and s+nu<=maximum (< 0 a-b)) (bbb-aux maximum (1+ i) a-b b s+nu nu))
+    (t (mv i a b s nu))))
   ///
   (fty::deffixequiv bbb-aux))
 
@@ -753,173 +417,196 @@
 
 (bbb 20 43/33)
 |#
-(defun-sk grid-distance-ok (maximum alpha a b)
-  (forall (x y)
-          (implies
-           (and (natp x)
-                (<= x maximum)
-                (integerp y))
-           (acl2::b*
-            ((alpha*x (* alpha x)))
-            (or (<= y (- alpha*x a))
-                (= y alpha*x)
-                (>= y (+ alpha*x b)))))))
-#|
-Rune:         (:REWRITE GRID-DISTANCE-OK-NECC)
-Enabled:      T
-Hyps:         (NOT (IMPLIES (AND (NATP X)
-                                 (<= X MAXIMUM)
-                                 (INTEGERP Y))
-                            (LET ((ALPHA*X (* ALPHA X)))
-                                 (OR (<= Y (+ ALPHA*X (- A)))
-                                     (= Y ALPHA*X)
-                                     (<= (+ ALPHA*X B) Y)))))
-Equiv:        EQUAL
-Lhs:          (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
-Rhs:          NIL
-Backchain-limit-lst: NIL
-Subclass:     ACL2::BACKCHAIN
-Loop-stopper: NIL
+(defun-sk alpha-separated (alpha maximum a b)
+  (forall (x y) (implies (and (natp x)
+                              (<= x maximum)
+                              (integerp y))
+                         (acl2::b*
+                          ((alpha*x (* alpha x)))
+                          (or (<= y (- alpha*x a))
+                              (= y alpha*x)
+                              (>= y (+ alpha*x b)))))))
+(in-theory (disable alpha-separated))
 
-Rune:         (:DEFINITION GRID-DISTANCE-OK)
-Enabled:      T
-Hyps:         T
-Equiv:        EQUAL
-Lhs:          (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
-Rhs:          (MV-LET (X Y)
-                      (GRID-DISTANCE-OK-WITNESS MAXIMUM ALPHA A B)
-                      (OR (NOT (NATP X))
-                          (COND ((< MAXIMUM X) T)
-                                ((INTEGERP Y)
-                                 (LET ((ALPHA*X (* ALPHA X)))
-                                      (OR (NOT (< (+ ALPHA*X (- A)) Y))
-                                          (EQUAL Y ALPHA*X)
-                                          (NOT (< Y (+ ALPHA*X B))))))
-                                (T T))))
-Backchain-limit-lst: NIL
-Subclass:     ACL2::DEFINITION
-Clique:       NIL
-Controller-alist: NIL
+(defrule alpha-separated-monotone
+   (implies (and (alpha-separated alpha maximum1 a1 b1)
+                (<= maximum maximum1)
+                (<= a a1)
+                (<= b b1))
+            (alpha-separated alpha maximum a b))
+   :use (alpha-separated
+         (:instance alpha-separated-necc
+                    (maximum maximum1)
+                    (a a1)
+                    (b b1)
+                    (x (mv-nth 0 (alpha-separated-witness alpha maximum a b)))
+                    (y (mv-nth 1 (alpha-separated-witness alpha maximum a b))))))
 
-(DEFTHM GRID-DISTANCE-OK-NECC
-  (IMPLIES (NOT (IMPLIES (AND (NATP X)
-                              (<= X MAXIMUM)
-                              (INTEGERP Y))
-                         (ACL2::B* ((ALPHA*X (* ALPHA X)))
-                                   (OR (<= Y (- ALPHA*X A))
-                                       (= Y ALPHA*X)
-                                       (>= Y (+ ALPHA*X B))))))
-           (NOT (GRID-DISTANCE-OK MAXIMUM ALPHA A B))))
-(DEFTHM  GRID-DISTANCE-OK-NECC
-  (IMPLIES (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
-           (IMPLIES (AND (NATP X)
-                         (<= X MAXIMUM)
-                         (INTEGERP Y))
-                    (ACL2::B* ((ALPHA*X (* ALPHA X)))
-                              (OR (<= Y (- ALPHA*X A))
-                                  (= Y ALPHA*X)
-                                  (>= Y (+ ALPHA*X B))))))
+(acl2::with-arith5-nonlinear-help
+ (defrule LEMMA-aaaa
+   (implies (and (alpha-separated alpha maximum1 A a+b)
+                 (real/rationalp alpha)
+                 (real/rationalp a)
+                 (real/rationalp b)
+                 (integerp maximum)
+                 (integerp maximum1)
+                 (<= maximum1 maximum)
+                 (<= maximum (1+ (* 2 maximum1)))
+                 (<= 0 a)
+                 (= a+b (+ a b))
+                 (integerp (- (* alpha (- maximum maximum1)) a)))
+            (alpha-separated alpha maximum a b))
+ :use alpha-separated
+ :cases ((> (mv-nth 0 (alpha-separated-witness alpha maximum a b)) maximum1))
+ :hints
+ (("subgoal 2" :use
+   (:instance alpha-separated-necc
+              (maximum maximum1)
+              (b a+b)
+              (x (mv-nth 0 (alpha-separated-witness alpha maximum a b)))
+              (y (mv-nth 1 (alpha-separated-witness alpha maximum a b)))))
+  ("subgoal 1" :use
+   (:instance alpha-separated-necc
+              (maximum maximum1)
+              (b a+b)
+              (x (- (mv-nth 0 (alpha-separated-witness alpha maximum a b))
+                    (- maximum maximum1)))
+              (y (- (mv-nth 1 (alpha-separated-witness alpha maximum a b))
+                    (- (* alpha (- maximum maximum1)) a))))))))
 
-|#
-(defund bbb-aux-invariant (alpha maximum a b s nu)
+(acl2::with-arith5-help
+; (rule
+ (defrule LEMMA-bbb
+   (IMPLIES (AND (ALPHA-SEPARATED ALPHA maximum1 a+b B)
+                 (RATIONALP ALPHA)
+               (RATIONALP A)
+               (RATIONALP B)
+               (integerp maximum)
+               (integerp maximum1)
+               (<= maximum1 maximum)
+               (<= maximum (1+ (* 2 maximum1)))
+               (<= 0 b)
+               (= a+b (+ a b))
+               (INTEGERP (+ (* ALPHA (- maximum maximum1)) b)))
+          (ALPHA-SEPARATED ALPHA maximum a b))
+ :use alpha-separated
+ :cases ((> (mv-nth 0 (alpha-separated-witness alpha maximum a b))
+            maximum1))
+ :hints
+ (("subgoal 2" :use
+   (:instance alpha-separated-necc
+              (maximum maximum1)
+              (a a+b)
+              (x (mv-nth 0 (alpha-separated-witness alpha maximum a b)))
+              (y (mv-nth 1 (alpha-separated-witness alpha maximum a b)))))
+  ("subgoal 1" :use
+   (:instance alpha-separated-necc
+              (maximum maximum1)
+              (a a+b)
+              (x (- (mv-nth 0 (alpha-separated-witness alpha maximum a b))
+                    (- maximum maximum1)))
+              (y (- (mv-nth 1 (alpha-separated-witness alpha maximum a b))
+                    (+ (* alpha (- maximum maximum1)) b))))))))
+
+
+(defund bbb-aux-invariant2 (alpha a b s nu)
+;(defund bbb-aux-invariant2 (alpha maximum a b s nu)
   (and
-   (pos-rationalp alpha)
-   (posp maximum)
-   (pos-rationalp a)
-   (pos-rationalp b)
+   (real/rationalp alpha)
+   (real/rationalp a)
+   (real/rationalp b)
    (posp s)
    (posp nu)
-   (<= (max s nu) maximum)
+   (< 0 a)
+   (< 0 b)
+;   (<= (max s nu) maximum)
    (integerp (- (* alpha s) a))
    (integerp (+ (* alpha nu) b))
-   (implies (<= s nu) (grid-distance-ok (1- nu) alpha a (+ a b)))
-   (implies (<= nu s) (grid-distance-ok (1- s)  alpha (+ a b) b))))
+   (alpha-separated alpha (+ -1 s nu) a b)))
 
-(acl2::with-arith5-help
- (defrule  LEMMA-2-4-1
-   (IMPLIES (AND (<= nu s)
-                 (pos-rationalp b)
-                 (integerp nu)
-                 (integerp (+ (* alpha nu) b))
-                 (GRID-DISTANCE-OK (+ -1 S) ALPHA (+ a b) b))
-            (GRID-DISTANCE-OK (+ -1 NU S) ALPHA a b))
-   :disable grid-distance-ok
-   :cases ((> (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)) (1- s)))
-   :use (:instance grid-distance-ok
-                   (maximum (+ -1 nu s)))
-   :hints
-   (("subgoal 2" :use
-     (:instance grid-distance-ok-necc
-                (a (+ a b))
-                (maximum (+ -1 s))
-                (x (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))
-                (y (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))))
-    ("subgoal 1" :use
-     (:instance grid-distance-ok-necc
-                (a (+ a b))
-                (maximum (+ -1 s))
-                (x (- (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
-                      nu))
-                (y (- (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
-                      (+ (* alpha nu) b))))))))
-
-(acl2::with-arith5-help
- (defrule LEMMA-1-8-2
-   (IMPLIES (AND (<= S NU)
-                 (real/rationalp alpha)
-                 (pos-rationalp a)
-                 (integerp s)
-                 (integerp (- (* alpha s) a))
-                 (GRID-DISTANCE-OK (+ -1 NU) ALPHA a (+ a b)))
-            (GRID-DISTANCE-OK (+ -1 NU S) ALPHA a B))
-   :disable grid-distance-ok
-   :cases ((> (mv-nth 0 (grid-distance-ok-witness (+ -1 s nu) alpha a b)) (1- nu)))
-   :use (:instance grid-distance-ok
-                   (maximum (+ -1 s nu)))
-   :hints
-   (("subgoal 2" :use
-     (:instance grid-distance-ok-necc
-                (b (+ a b))
-                (maximum (+ -1 nu))
-                (x (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))
-                (y (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))))
-    ("subgoal 1" :use
-     (:instance grid-distance-ok-necc
-                (b (+ a b))
-                (maximum (+ -1 nu))
-                (x (- (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
-                      s))
-                (y (- (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
-                      (- (* alpha s) a))))))))
-
-(acl2::with-arith5-help
+(acl2::with-arith5-nonlinear-help
  (rule
   (acl2::b*
    ((new-b (- b a))
     (new-nu (+ s nu)))
    (implies
     (and
-     (bbb-aux-invariant alpha maximum a b s nu)
-     (> b a)
-     (<= (+ s nu) maximum))
-    (bbb-aux-invariant alpha maximum a new-b s new-nu)))
-  :enable (bbb-aux-invariant
-           pos-rationalp)
-  :disable (grid-distance-ok)
-  :cases ((<= s nu))))
+     (bbb-aux-invariant2 alpha a b s nu)
+     (> b a))
+    (bbb-aux-invariant2 alpha a new-b s new-nu)))
+  :enable bbb-aux-invariant2))
 
-(acl2::with-arith5-help
+
+(acl2::with-arith5-nonlinear-help
  (rule
   (acl2::b*
    ((new-a (- a b))
     (new-s (+ s nu)))
    (implies
     (and
-     (bbb-aux-invariant alpha maximum a b s nu)
-     (> a b)
-     (<= (+ s nu) maximum))
-    (bbb-aux-invariant alpha maximum new-a b new-s nu)))
-  :enable (bbb-aux-invariant
-           pos-rationalp)
-  :disable (grid-distance-ok)
-  :cases ((<= s nu))))
+     (bbb-aux-invariant2 alpha a b s nu)
+     (> a b))
+    (bbb-aux-invariant2 alpha new-a b new-s nu)))
+  :enable bbb-aux-invariant2))
+
+(acl2::with-arith5-help
+ (defrule aaaaaa
+ (implies (and (alpha-separated alpha (1- period) a a)
+               (posp period)
+               (natp maximum)
+               (integerp (* alpha period)))
+
+          (alpha-separated alpha maximum a a))
+ :cases ((integerp (* alpha period (floor maximum period))))
+ :use ((:instance alpha-separated
+                  (b a))
+       (:instance alpha-separated-necc
+                  (maximum (1- period))
+                  (b a)
+                  (x (mod (mv-nth 0 (alpha-separated-witness alpha maximum a a)) period))
+                  (y (- (mv-nth 1 (alpha-separated-witness alpha maximum a a))
+                        (* alpha
+                           period
+                           (floor (mv-nth 0 (alpha-separated-witness
+                                             alpha maximum a a))
+                                  period))))))
+ :prep-lemmas
+ ((acl2::with-arith5-help
+   (defruled lemma
+     (implies (and (integerp (* alpha period))
+                   (integerp i))
+              (integerp (* alpha period i)))))
+  (acl2::with-arith5-help
+  (defrule lemma2
+    (implies (and (posp period)
+                  )
+             (equal (+ (* alpha (mod x period))
+                       (* alpha period (floor x period)))
+                    (* alpha x))))))))
+
+(rule
+ (implies (and (bbb-aux-invariant2 alpha a b s nu)
+               (integerp maximum)
+               (or (= a b)
+                   (> (+ s nu) maximum)))
+          (alpha-separated alpha maximum a b))
+ :enable bbb-aux-invariant2
+ :hints
+ (("subgoal 2" :use (:instance aaaaaa
+                              (period (+ nu s))))
+  )
+ :prep-lemmas
+ ((acl2::with-arith5-nonlinear++-help
+   (defrule lemma
+    (implies (and (integerp (+ (- a) (* alpha s)))
+                  (integerp (+ a (* alpha nu))))
+             (integerp (+ (* alpha nu) (* alpha s))))
+    :use (:instance lemma0
+                    (x (+ (- a) (* alpha s)))
+                    (y (+ a (* alpha nu))))
+    :prep-lemmas
+    ((defrule lemma0
+       (implies (and (integerp x) (integerp y))
+                (integerp (+ x y)))))
+    )))
+ )
