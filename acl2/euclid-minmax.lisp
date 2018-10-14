@@ -678,3 +678,248 @@
 (aaa 10 4 10) ; (3 2 2 3 2)
 (aaa 11 4 10) ; (3 2 2 3 2)
 |#
+(define bbb-aux
+  ((maximum posp)
+   (i natp)
+   (a pos-rationalp)
+   (b pos-rationalp)
+   (s posp)
+   (nu posp))
+  :measure (nfix (- (acl2::pos-fix maximum)
+                    (max (acl2::pos-fix s) (acl2::pos-fix nu))))
+  :returns (mv (i natp :rule-classes :type-prescription)
+               (a pos-rationalp :rule-classes :type-prescription)
+               (b pos-rationalp :rule-classes :type-prescription)
+               (s posp :rule-classes :type-prescription)
+               (nu posp :rule-classes :type-prescription))
+  (acl2::b*
+   ((maximum (acl2::pos-fix maximum))
+    (i (nfix i))
+    (a (pos-rational-fix a))
+    (b (pos-rational-fix b))
+    (s (acl2::pos-fix s))
+    (nu (acl2::pos-fix nu))
+    (s+nu (+ s nu))
+    (s+nu<=maximum (<= s+nu maximum))
+    (a-b (- a b)))
+   (cond ((and s+nu<=maximum (< a-b 0))
+          (bbb-aux maximum (1+ i) a (- a-b) s s+nu))
+         ((and s+nu<=maximum (< 0 a-b))
+          (bbb-aux maximum (1+ i) a-b b s+nu nu))
+         (t (mv i a b s nu))))
+  ///
+  (fty::deffixequiv bbb-aux))
+
+(acl2::with-arith5-nonlinear-help
+ (define bbb
+  ((maximum natp)
+   (alpha pos-rationalp))
+  :returns (mv (a pos-rationalp :rule-classes :type-prescription)
+               (b pos-rationalp :rule-classes :type-prescription))
+  (acl2::b*
+   ((a (frac-alpha-d alpha 1))
+    ((when (or (zp maximum) (= a 0))) (mv 1 1))
+    (b (- 1 a))
+    ((mv ?i a b ?s ?nu) (bbb-aux maximum 0 a b 1 1)))
+   (mv a b))
+  :guard-hints (("goal" :in-theory (enable pos-rationalp)))
+  ///
+  (fty::deffixequiv bbb)))
+#|
+(bbb-aux 1 0 10/33 23/33 1 1) ; (0 10/33 23/33 1 1)
+(bbb-aux 1 0 10/33 23/33 1 1) ; (0 10/33 23/33 1 1)
+(bbb-aux 2 0 10/33 23/33 1 1) ; (0 10/33 13/33 1 2)
+(bbb-aux 3 0 10/33 23/33 1 1) ; (0 10/33 1/11 1 3)
+(bbb-aux 4 0 10/33 23/33 1 1) ; (0 7/33 1/11 4 3)
+(bbb-aux 5 0 10/33 23/33 1 1) ; (0 7/33 1/11 4 3)
+(bbb-aux 6 0 10/33 23/33 1 1) ; (0 7/33 1/11 4 3)
+(bbb-aux 7 0 10/33 23/33 1 1) ; (0 4/33 1/11 7 3)
+(bbb-aux 8 0 10/33 23/33 1 1) ; (0 4/33 1/11 7 3)
+(bbb-aux 9 0 10/33 23/33 1 1) ; (0 4/33 1/11 7 3)
+(bbb-aux 10 0 10/33 23/33 1 1) ; (0 1/33 1/11 10 3)
+(bbb-aux 11 0 10/33 23/33 1 1) ; (0 1/33 1/11 10 3)
+(bbb-aux 12 0 10/33 23/33 1 1) ; (0 1/33 1/11 10 3)
+(bbb-aux 13 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 14 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 15 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 16 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 17 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 18 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 19 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 20 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 21 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 22 0 10/33 23/33 1 1) ; (0 1/33 2/33 10 13)
+(bbb-aux 23 0 10/33 23/33 1 1) ; (0 1/33 1/33 10 23)
+
+(bbb 20 43/33)
+|#
+(defun-sk grid-distance-ok (maximum alpha a b)
+  (forall (x y)
+          (implies
+           (and (natp x)
+                (<= x maximum)
+                (integerp y))
+           (acl2::b*
+            ((alpha*x (* alpha x)))
+            (or (<= y (- alpha*x a))
+                (= y alpha*x)
+                (>= y (+ alpha*x b)))))))
+#|
+Rune:         (:REWRITE GRID-DISTANCE-OK-NECC)
+Enabled:      T
+Hyps:         (NOT (IMPLIES (AND (NATP X)
+                                 (<= X MAXIMUM)
+                                 (INTEGERP Y))
+                            (LET ((ALPHA*X (* ALPHA X)))
+                                 (OR (<= Y (+ ALPHA*X (- A)))
+                                     (= Y ALPHA*X)
+                                     (<= (+ ALPHA*X B) Y)))))
+Equiv:        EQUAL
+Lhs:          (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
+Rhs:          NIL
+Backchain-limit-lst: NIL
+Subclass:     ACL2::BACKCHAIN
+Loop-stopper: NIL
+
+Rune:         (:DEFINITION GRID-DISTANCE-OK)
+Enabled:      T
+Hyps:         T
+Equiv:        EQUAL
+Lhs:          (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
+Rhs:          (MV-LET (X Y)
+                      (GRID-DISTANCE-OK-WITNESS MAXIMUM ALPHA A B)
+                      (OR (NOT (NATP X))
+                          (COND ((< MAXIMUM X) T)
+                                ((INTEGERP Y)
+                                 (LET ((ALPHA*X (* ALPHA X)))
+                                      (OR (NOT (< (+ ALPHA*X (- A)) Y))
+                                          (EQUAL Y ALPHA*X)
+                                          (NOT (< Y (+ ALPHA*X B))))))
+                                (T T))))
+Backchain-limit-lst: NIL
+Subclass:     ACL2::DEFINITION
+Clique:       NIL
+Controller-alist: NIL
+
+(DEFTHM GRID-DISTANCE-OK-NECC
+  (IMPLIES (NOT (IMPLIES (AND (NATP X)
+                              (<= X MAXIMUM)
+                              (INTEGERP Y))
+                         (ACL2::B* ((ALPHA*X (* ALPHA X)))
+                                   (OR (<= Y (- ALPHA*X A))
+                                       (= Y ALPHA*X)
+                                       (>= Y (+ ALPHA*X B))))))
+           (NOT (GRID-DISTANCE-OK MAXIMUM ALPHA A B))))
+(DEFTHM  GRID-DISTANCE-OK-NECC
+  (IMPLIES (GRID-DISTANCE-OK MAXIMUM ALPHA A B)
+           (IMPLIES (AND (NATP X)
+                         (<= X MAXIMUM)
+                         (INTEGERP Y))
+                    (ACL2::B* ((ALPHA*X (* ALPHA X)))
+                              (OR (<= Y (- ALPHA*X A))
+                                  (= Y ALPHA*X)
+                                  (>= Y (+ ALPHA*X B))))))
+
+|#
+(defund bbb-aux-invariant (alpha maximum a b s nu)
+  (and
+   (pos-rationalp alpha)
+   (posp maximum)
+   (pos-rationalp a)
+   (pos-rationalp b)
+   (posp s)
+   (posp nu)
+   (<= (max s nu) maximum)
+   (integerp (- (* alpha s) a))
+   (integerp (+ (* alpha nu) b))
+   (implies (<= s nu) (grid-distance-ok (1- nu) alpha a (+ a b)))
+   (implies (<= nu s) (grid-distance-ok (1- s)  alpha (+ a b) b))))
+
+(acl2::with-arith5-help
+ (defrule  LEMMA-2-4-1
+   (IMPLIES (AND (<= nu s)
+                 (pos-rationalp b)
+                 (integerp nu)
+                 (integerp (+ (* alpha nu) b))
+                 (GRID-DISTANCE-OK (+ -1 S) ALPHA (+ a b) b))
+            (GRID-DISTANCE-OK (+ -1 NU S) ALPHA a b))
+   :disable grid-distance-ok
+   :cases ((> (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)) (1- s)))
+   :use (:instance grid-distance-ok
+                   (maximum (+ -1 nu s)))
+   :hints
+   (("subgoal 2" :use
+     (:instance grid-distance-ok-necc
+                (a (+ a b))
+                (maximum (+ -1 s))
+                (x (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))
+                (y (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))))
+    ("subgoal 1" :use
+     (:instance grid-distance-ok-necc
+                (a (+ a b))
+                (maximum (+ -1 s))
+                (x (- (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
+                      nu))
+                (y (- (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
+                      (+ (* alpha nu) b))))))))
+
+(acl2::with-arith5-help
+ (defrule LEMMA-1-8-2
+   (IMPLIES (AND (<= S NU)
+                 (real/rationalp alpha)
+                 (pos-rationalp a)
+                 (integerp s)
+                 (integerp (- (* alpha s) a))
+                 (GRID-DISTANCE-OK (+ -1 NU) ALPHA a (+ a b)))
+            (GRID-DISTANCE-OK (+ -1 NU S) ALPHA a B))
+   :disable grid-distance-ok
+   :cases ((> (mv-nth 0 (grid-distance-ok-witness (+ -1 s nu) alpha a b)) (1- nu)))
+   :use (:instance grid-distance-ok
+                   (maximum (+ -1 s nu)))
+   :hints
+   (("subgoal 2" :use
+     (:instance grid-distance-ok-necc
+                (b (+ a b))
+                (maximum (+ -1 nu))
+                (x (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))
+                (y (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b)))))
+    ("subgoal 1" :use
+     (:instance grid-distance-ok-necc
+                (b (+ a b))
+                (maximum (+ -1 nu))
+                (x (- (mv-nth 0 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
+                      s))
+                (y (- (mv-nth 1 (grid-distance-ok-witness (+ -1 nu s) alpha a b))
+                      (- (* alpha s) a))))))))
+
+(acl2::with-arith5-help
+ (rule
+  (acl2::b*
+   ((new-b (- b a))
+    (new-nu (+ s nu)))
+   (implies
+    (and
+     (bbb-aux-invariant alpha maximum a b s nu)
+     (> b a)
+     (<= (+ s nu) maximum))
+    (bbb-aux-invariant alpha maximum a new-b s new-nu)))
+  :enable (bbb-aux-invariant
+           pos-rationalp)
+  :disable (grid-distance-ok)
+  :cases ((<= s nu))))
+
+(acl2::with-arith5-help
+ (rule
+  (acl2::b*
+   ((new-a (- a b))
+    (new-s (+ s nu)))
+   (implies
+    (and
+     (bbb-aux-invariant alpha maximum a b s nu)
+     (> a b)
+     (<= (+ s nu) maximum))
+    (bbb-aux-invariant alpha maximum new-a b new-s nu)))
+  :enable (bbb-aux-invariant
+           pos-rationalp)
+  :disable (grid-distance-ok)
+  :cases ((<= s nu))))
