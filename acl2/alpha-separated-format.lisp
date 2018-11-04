@@ -9,8 +9,8 @@
  (define alpha-separated-format-aux
    ((f formatp)
     (q integerp))
-   :returns (mv (a real/rationalp :rule-classes :type-prescription)
-                (b real/rationalp :rule-classes :type-prescription))
+   :returns (mv (a pos-rationalp :rule-classes :type-prescription)
+                (b pos-rationalp :rule-classes :type-prescription))
    :measure (nfix (- (1+ (ifix q)) (Qmin f)))
    :verify-guards nil
    (acl2::b*
@@ -21,7 +21,7 @@
      (ulpD (expt (D) k))
      (alpha (/ ulp2 ulpD))
      (CbMax (+ (expt 2 (1+ (P f))) 2))
-     ((mv a1 b1) (alpha-separated-search CbMax alpha))
+     ((mv a1 b1) (alpha-separated-rat-search CbMax alpha))
      ((mv a2 b2) (alpha-separated-format-aux f (1- q))))
     (mv (min a1 a2) (min b1 b2)))
    ///
@@ -48,17 +48,17 @@
      :enable alpha-separated-format-aux
      :hints
      (("subgoal *1/1" :cases ((< qmax q) (= qmax q) (> qmax q)))
-      ("subgoal *1/1.2" :in-theory (disable  alpha-separated-search-correct)
+      ("subgoal *1/1.2" :in-theory (disable alpha-separated-rat-search-correct)
        :use
-       (:instance alpha-separated-search-correct
+       (:instance alpha-separated-rat-search-correct
                    (alpha (/ (expt 2 q) (expt (D) (1- (ordD (expt 2 q))))))
                    (maximum (+ (expt 2 (1+ (P f))) 2)))
        :expand (alpha-separated-format-aux f q))))))
 
 (define alpha-separated-format
   ((f formatp))
-  :returns (mv (a real/rationalp :rule-classes :type-prescription)
-               (b real/rationalp :rule-classes :type-prescription))
+  :returns (mv (a pos-rationalp :rule-classes :type-prescription)
+               (b pos-rationalp :rule-classes :type-prescription))
   (alpha-separated-format-aux f (Qmax f))
   ///
   (fty::deffixequiv alpha-separated-format)
@@ -180,3 +180,30 @@
          1323359619378521/17763568394002504646778106689453125)
       (< #fx1.634F750135C33p-62
          13495495102079394236024608066524855977556894701821022154598099207791989398404057073/44841550858394146269559346665277316200968382140048504696226185084473314645947539247572422027587890625)))
+#|
+(time$ (alpha-separated-format (ep)))
+
+(defrule frac-alpha-d-nonzero-bound-ep-correct
+  (acl2::b*
+   ((f (ep))
+    (a )
+    (b )
+    (ulp2 (expt 2 (+ qb 1)))
+    (r (1- (ordD ulp2)))
+    (ulpD (expt (D) r))
+    (alpha (/ ulp2 ulpD))
+    (cbMax (+ (expt 2 (1+ (P f))) 2)))
+   (implies (and (integerp qb)
+                 (<= (- (Qmin f) 1) qb)
+                 (<= qb (- (Qmax f) 1))
+                 (natp cb)
+                 (<= cb cbMax)
+                 (integerp m)
+                 (< (- m b) (* alpha cb))
+                 (< (* alpha cb) (+ m a)))
+            (equal (* alpha cb) m)))
+  :rule-classes ()
+  :enable ep
+  :use (:instance frac-alpha-d-nonzero-bound-f-correct (f (ep))))
+|#
+
