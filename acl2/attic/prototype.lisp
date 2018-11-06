@@ -1,7 +1,7 @@
 ;; ACL2 model of prototype implementation
 ;;
 (in-package "RTL")
-(include-book "section11")
+(include-book "../section11")
 (include-book "ihs/basic-definitions" :dir :system)
 (include-book "kestrel/utilities/fixbytes/instances" :dir :system)
 
