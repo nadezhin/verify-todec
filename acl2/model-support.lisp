@@ -93,6 +93,28 @@
   ///
   (fty::deffixequiv i2l))
 
+(define iadd
+  ((x acl2::sbyte32p)
+   (y acl2::sbyte32p))
+  :returns (result acl2::sbyte32p)
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (y (acl2::sbyte32-fix y)))
+   (int-fix (+ x y)))
+  ///
+  (fty::deffixequiv iadd))
+
+(define iand
+  ((x acl2::sbyte32p)
+   (y acl2::sbyte32p))
+  :returns (result acl2::sbyte32p)
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (y (acl2::sbyte32-fix y)))
+   (int-fix (logand x y)))
+  ///
+  (fty::deffixequiv iand))
+
 (define ior
   ((x acl2::sbyte32p)
    (y acl2::sbyte32p))
@@ -268,3 +290,17 @@
               (natp (lrem x y)))
      :rule-classes :type-prescription
      :use lrem-when-nonnegative-args)))
+
+(define lushr
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte32p))
+  :returns (results acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte32-fix y))
+    (xu (acl2::loghead 64 x))
+    (n (acl2::loghead 6 y)))
+   (long-fix (ash xu (- n))))
+  ///
+  (fty::deffixequiv lushr))
+
