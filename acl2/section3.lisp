@@ -309,6 +309,57 @@
                                 (p (P f))
                                 (x (* c (expt 2 q))))))))
 
+(acl2::with-arith5-help
+ (defruled q-c-decode
+   (implies
+    (formatp f)
+    (and (equal (q (abs (decode enc f)) f)
+                (cond
+                 ((not (= (expf enc f) 0)) (+ -1 (expf enc f) (Qmin f)))
+                 ((not (= (sigf enc f) 0)) (Qmin f))
+                 (t (- 1 (P f)))))
+         (equal (c (abs (decode enc f)) f)
+                (cond
+                 ((not (= (expf enc f) 0)) (+ (expt 2 (1- (P f))) (manf enc f)))
+                 ((not (= (sigf enc f) 0)) (sigf enc f))
+                 (t (expt 2 (1- (P f))))))))
+   :rule-classes
+   ((:rewrite
+     :corollary
+     (implies
+      (formatp f)
+      (equal (q (abs (decode enc f)) f)
+             (cond
+              ((not (= (expf enc f) 0)) (+ -1 (expf enc f) (Qmin f)))
+              ((not (= (sigf enc f) 0)) (Qmin f))
+              (t (- 1 (P f)))))))
+    (:rewrite
+     :corollary
+     (implies
+      (formatp f)
+      (equal (c (abs (decode enc f)) f)
+             (cond
+              ((not (= (expf enc f) 0)) (+ (expt 2 (1- (P f))) (manf enc f)))
+              ((not (= (sigf enc f) 0)) (sigf enc f))
+              (t (expt 2 (1- (P f)))))))))
+   :enable (encodingp decode ndecode ddecode 2^{P-1} P Qmin 2^{W-1}-as-bias)
+   :use
+   (:instance unique-c*2^q
+              (q (cond
+                  ((not (= (expf enc f) 0)) (+ -1 (expf enc f) (Qmin f)))
+                  ((not (= (sigf enc f) 0)) (Qmin f))
+                  (t (- 1 (P f)))))
+              (c (cond
+                  ((not (= (expf enc f) 0)) (+ (expt 2 (1- (P f))) (manf enc f)))
+                  ((not (= (sigf enc f) 0)) (sigf enc f))
+                  (t (expt 2 (1- (P f)))))))
+   :prep-lemmas
+   ((acl2::with-arith5-nonlinear-help
+     (defrule lemma
+       (implies (formatp f)
+                (< (+ (expt 2 (+ -1 (prec f))) (manf enc f))
+                   (expt 2 (prec f)))))))))
+
 (define finite-positive-binary-p
   ((x real/rationalp "Floating point value")
    (f formatp "Floating point format"))
@@ -379,6 +430,25 @@
                       (b 2)
                       (x c)
                       (n (1- (P f))))))))))
+
+(acl2::with-arith5-nonlinear-help
+ (defrule finite-positive-binary-abs-decode
+  (implies (or (normp enc f) (denormp enc f))
+           (finite-positive-binary-p (abs (decode enc f)) f))
+  :enable (finite-positive-binary-p decode)
+  :prep-lemmas
+  ((defrule nrepp-minus
+     (equal (nrepp (- x) f)
+            (nrepp x f))
+     :enable nrepp)
+   (defrule drepp-minus
+     (equal (drepp (- x) f)
+            (drepp x f))
+     :enable drepp)
+   (defrule ddecode-when-denormp
+     (implies (denormp enc f)
+              (not (equal (ddecode enc f) 0)))
+     :enable ddecode))))
 
 (defrule q-linear-when-finite-positive-binary
   (implies (finite-positive-binary-p (pos-rational-fix x) f)

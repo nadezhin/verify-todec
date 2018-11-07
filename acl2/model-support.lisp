@@ -115,6 +115,60 @@
   ///
   (fty::deffixequiv iand))
 
+(define if_icmpge
+  ((x acl2::sbyte32p)
+   (y acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (y (acl2::sbyte32-fix y))
+    (jmp (>= x y)))
+   (not jmp))
+  ///
+  (fty::deffixequiv if_icmpge))
+
+(define if_icmpne
+  ((x acl2::sbyte32p)
+   (y acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (y (acl2::sbyte32-fix y))
+    (jmp (not (= x y))))
+   (not jmp))
+  ///
+  (fty::deffixequiv if_icmpne))
+
+(define ifeq
+  ((x acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (jmp (= x 0)))
+   (not jmp))
+  ///
+  (fty::deffixequiv ifeq))
+
+(define ifle
+  ((x acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (jmp (<= x 0)))
+   (not jmp))
+  ///
+  (fty::deffixequiv ifle))
+
+(define ifne
+  ((x acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (jmp (not (= x 0))))
+   (not jmp))
+  ///
+  (fty::deffixequiv ifne))
+
 (define ior
   ((x acl2::sbyte32p)
    (y acl2::sbyte32p))
@@ -168,6 +222,28 @@
    (long-fix (+ x y)))
   ///
   (fty::deffixequiv ladd))
+
+(define land
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (long-fix (logand x y)))
+  ///
+  (fty::deffixequiv land))
+
+(define lcmp
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result acl2::sbyte32p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (signum (- x y)))
+  ///
+  (fty::deffixequiv lcmp))
 
 (define ldiv
   ((x acl2::sbyte64p)
@@ -223,6 +299,17 @@
    (long-fix (* x y)))
   ///
   (fty::deffixequiv lmul))
+
+(define lor
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (long-fix (logior x y)))
+  ///
+  (fty::deffixequiv lor))
 
 (define lshl
   ((x acl2::sbyte64p)

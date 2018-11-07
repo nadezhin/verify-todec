@@ -7,6 +7,7 @@
 (local (acl2::allow-arith5-help))
 
 (local (include-book "rtl/rel11/support/bits" :dir :system))
+(local (include-book "rtl/rel11/support/reps" :dir :system))
 (local (include-book "centaur/gl/gl" :dir :system))
 
 (local
@@ -150,56 +151,6 @@
     :rule-classes :type-prescription
     :enable (denormp dp sigf manf)))
 
-(defruledl decode-when-denormp
-  (implies (denormp (enc@ enc) (dp))
-           (equal (decode (enc@ enc) (dp))
-                  (* (if (= (sgnf@ enc) 1) -1 1)
-                     (manf@ enc)
-                     (expt 2 (Qmin (dp))))))
-  :enable (sgnf@ manf@ decode ddecode denormp sigf manf dp)
-  :cases ((= (sgnf@ enc) 0)
-          (= (sgnf@ enc) 1)))
-
-(local
- (acl2::with-arith5-help
-  (defruled decode-when-normp
-    (implies (normp (enc@ enc) (dp))
-             (equal (decode (enc@ enc) (dp))
-                    (* (if (= (sgnf@ enc) 1) -1 1)
-                       (+ (2^{P-1} (dp)) (manf@ enc))
-                       (expt 2 (+ -1 (Qmin (dp)) (expf@ enc))))))
-    :enable (sgnf@ expf@ manf@ decode ndecode normp dp)
-    :cases ((= (sgnf@ enc) 0)
-            (= (sgnf@ enc) 1)))))
-
-(acl2::with-arith5-help
- (define abs-val@
-   ((enc acl2::ubyte64p))
-   :returns (abs-val@ pos-rationalp
-                      :rule-classes :type-prescription
-                      :hints (("goal" :in-theory (enable decode-when-denormp
-                                                         decode-when-normp))))
-   (acl2::b*
-    ((enc (enc@ enc))
-     (f (dp)))
-    (if (or (denormp enc f) (normp enc f))
-        (abs (decode enc f))
-      1))
-   ///
-   (fty::deffixequiv abs-val@)
-   (defruled abs-val@-when-denormp
-     (implies (denormp (enc@ enc) (dp))
-              (equal (abs-val@ enc)
-                     (* (manf@ enc)
-                        (expt 2 (Qmin (dp))))))
-     :enable decode-when-denormp)
-   (defruled abs-val@-when-normp
-     (implies (normp (enc@ enc) (dp))
-              (equal (abs-val@ enc)
-                     (* (+ (2^{P-1} (dp)) (manf@ enc))
-                        (expt 2 (+ -1 (Qmin (dp)) (expf@ enc))))))
-     :enable decode-when-normp)))
-
 (define bits@
   ((enc acl2::ubyte64p))
   :returns (bits@ acl2::sbyte64p)
@@ -232,25 +183,389 @@
                      (acl2::loghead 11 (acl2::logtail 52 enc)))
        :g-bindings (gl::auto-bindings (:nat enc 64))))))
 
+(define bq<BQ_MASK@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (if_icmpge (bq@ enc) *DoubleToDecimal.BQ_MASK*)
+  ///
+  (fty::deffixequiv bq<BQ_MASK@)
+  (defruled bq<BQ_MASK@-as-expf@
+    (equal (bq<BQ_MASK@ enc)
+           (< (expf@ enc) #x7ff))
+    :enable (bq@-as-expf@ if_icmpge sbyte32-suff))
+  (defruled bq<BQ_MASK@-as-normp-denormp-zerp
+    (equal (bq<BQ_MASK@ enc)
+           (or (normp (enc@ enc) (dp))
+               (denormp (enc@ enc) (dp))
+               (zerp (enc@ enc) (dp))))
+    :enable (bq<BQ_MASK@-as-expf@ expf@ normp denormp zerp dp)
+    :use return-type-of-enc@))
+
+(define bq>0@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (ifle (bq@ enc))
+  ///
+  (fty::deffixequiv bq>0@)
+  (defruled bq>0@-as-expf@
+    (equal (bq>0@ enc) (> (expf@ enc) 0))
+    :enable (bq@-as-expf@ ifle sbyte32-suff)))
+
+(define normp@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (and (bq<BQ_MASK@ enc) (bq>0@ enc))
+  ///
+  (fty::deffixequiv normp@)
+  (defruled normp@-as-expf@
+    (equal (normp@ enc)
+           (and (< 0 (expf@ enc))
+                (< (expf@ enc) #x7ff)))
+    :enable (bq<BQ_MASK@-as-expf@ bq>0@-as-expf@))
+  (defruled normp@-as-normp
+    (equal (normp@ enc) (normp (enc@ enc) (dp)))
+    :enable (bq<BQ_MASK@-as-expf@ bq>0@-as-expf@ expf@ normp dp)
+    :use return-type-of-enc@))
+
+(define bits==0x0000_0000_0000_0000L@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (acl2::b*
+   ((bits==0x0000_0000_0000_0000L (lcmp (bits@ enc) #ux0000_0000_0000_0000)))
+   (ifne bits==0x0000_0000_0000_0000L))
+  ///
+  (fty::deffixequiv bits==0x0000_0000_0000_0000L@)
+  (defruled bits==0x0000_0000_0000_0000L@-as-sgnf-expf-sigf
+    (equal (bits==0x0000_0000_0000_0000L@ enc)
+           (and (= (sgnf@ enc) 0)
+                (= (expf@ enc) 0)
+                (= (manf@ enc) 0)))
+    :enable (bits@-as-enc@
+             sgnf@-as-logbit expf@-as-loghead-logtail manf@-as-loghead)
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (acl2::ubyte64p enc)
+       :concl (equal (ifne (lcmp (long-fix enc) 0))
+                     (and (= (acl2::logbit 63 enc) 0)
+                          (= (acl2::loghead 11 (acl2::logtail 52 enc)) 0)
+                          (= (acl2::loghead 52 enc) 0)))
+       :g-bindings (gl::auto-bindings (:nat enc 64)))))
+  (defruled bits==0x0000_0000_0000_0000L@-as-zerp
+    (equal (bits==0x0000_0000_0000_0000L@ enc)
+           (and (zerp (enc@ enc) (dp))
+                (not (sgn@ enc))))
+    :enable (bits==0x0000_0000_0000_0000L@-as-sgnf-expf-sigf
+             sgn@ expf@ manf@ sigf manf zerp dp)
+    :disable bits==0x0000_0000_0000_0000L@
+    :use return-type-of-enc@))
+
+(define bits==0x8000_0000_0000_0000L@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (acl2::b*
+   ((bits==0x8000_0000_0000_0000L (lcmp (bits@ enc) #ux-8000_0000_0000_0000)))
+   (ifne bits==0x8000_0000_0000_0000L))
+  ///
+  (fty::deffixequiv bits==0x8000_0000_0000_0000L@)
+  (defruled bits==0x8000_0000_0000_0000L@-as-sgnf-expf-sigf
+    (equal (bits==0x8000_0000_0000_0000L@ enc)
+           (and (= (sgnf@ enc) 1)
+                (= (expf@ enc) 0)
+                (= (manf@ enc) 0)))
+    :enable (bits@-as-enc@
+             sgnf@-as-logbit expf@-as-loghead-logtail manf@-as-loghead)
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (acl2::ubyte64p enc)
+       :concl (equal (ifne (lcmp (long-fix enc) #ux-8000_0000_0000_0000))
+                     (and (= (acl2::logbit 63 enc) 1)
+                          (= (acl2::loghead 11 (acl2::logtail 52 enc)) 0)
+                          (= (acl2::loghead 52 enc) 0)))
+       :g-bindings (gl::auto-bindings (:nat enc 64)))))
+  (defruled bits==0x8000_0000_0000_0000L@-as-zerp
+    (equal (bits==0x8000_0000_0000_0000L@ enc)
+           (and (zerp (enc@ enc) (dp))
+                (sgn@ enc)))
+    :enable (bits==0x8000_0000_0000_0000L@-as-sgnf-expf-sigf
+             sgn@ expf@ manf@ sigf manf zerp dp)
+    :disable bits==0x8000_0000_0000_0000L@
+    :use return-type-of-enc@))
+
+(define denormp@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (and (bq<BQ_MASK@ enc)
+       (not (bq>0@ enc))
+       (not (bits==0x0000_0000_0000_0000L@ enc))
+       (not (bits==0x8000_0000_0000_0000L@ enc)))
+  ///
+  (fty::deffixequiv denormp@)
+  (defruled denormp@-as-expf-manf@
+    (equal (denormp@ enc)
+           (and (= (expf@ enc) 0)
+                (not (= (manf@ enc) 0))))
+    :enable (bq<BQ_MASK@-as-expf@
+             bq>0@-as-expf@
+             bits==0x0000_0000_0000_0000L@-as-sgnf-expf-sigf
+             bits==0x8000_0000_0000_0000L@-as-sgnf-expf-sigf))
+  (defruled denormp@-as-denormp
+    (equal (denormp@ enc) (denormp (enc@ enc) (dp)))
+    :enable (bq<BQ_MASK@-as-normp-denormp-zerp
+             bq>0@-as-expf@
+             bits==0x0000_0000_0000_0000L@-as-zerp
+             bits==0x8000_0000_0000_0000L@-as-zerp
+             expf@ denormp zerp dp)
+    :use return-type-of-enc@))
+
+(acl2::with-arith5-help
+ (define v@
+   ((enc acl2::ubyte64p))
+   :returns (v@ (finite-positive-binary-p v@ (dp))
+                :hints (("goal" :in-theory (e/d (normp@-as-normp
+                                                 denormp@-as-denormp
+                                                 dp)
+                                                (abs)))))
+   (if (or (normp@ enc) (denormp@ enc))
+       (abs (decode (enc@ enc) (dp)))
+     1)
+   ///
+   (fty::deffixequiv v@)
+   (defrule v@-type
+     (pos-rationalp (v@ enc))
+     :rule-classes :type-prescription
+     :disable v@
+     :cases ((finite-positive-binary-p (v@ enc) (dp))))))
+
 (define q@
   ((enc acl2::ubyte64p))
-  :returns (q@ acl2::sbyte32p :rule-classes :type-prescription)
-  (if (> (bq@ enc) 0)
-      (iadd (- *DoubleToDecimal.Q_MIN* 1) (bq@ enc))
-    *DoubleToDecimal.Q_MIN*)
+  :returns (q@ acl2::sbyte32p :rule-classes :type-prescription
+               :hints (("goal" :in-theory (enable dp))))
+  (cond ((normp@ enc)
+         (iadd (- *DoubleToDecimal.Q_MIN* 1) (bq@ enc)))
+        ((denormp@ enc)
+         *DoubleToDecimal.Q_MIN*)
+        (t (q 1 (dp))))
   ///
   (fty::deffixequiv q@)
-  (defrule q@-denormp
-    (implies (denormp (enc@ enc) (dp))
-             (equal (q@ enc) (Qmin (dp))))
-    :enable (denormp bq@-as-expf@ expf@ dp))
-#|
+  (defruled q@-as-q
+    (equal (q@ enc)
+           (q (v@ enc) (dp)))
+    :enable (bq@-as-expf@
+             normp@-as-expf@
+             denormp@-as-expf-manf@
+             expf@ manf@ expf manf sigf
+             v@ q-c-decode dp
+             )
+    :disable abs
+    :use lemma2
+    :prep-lemmas
+    ((defruled lemma2
+       (equal (iadd -1075 (expf@ enc))
+              (+ -1075 (expf@ enc)))
+       :enable (iadd sbyte32-suff)
+       :hints (("goal''" :in-theory (enable expf@)))))))
+
+(define c@
+  ((enc acl2::ubyte64p))
+  :returns (c@ acl2::sbyte64p :rule-classes :type-prescription
+               :hints (("goal" :in-theory (enable dp))))
+  (cond ((normp@ enc)
+         (acl2::b*
+          ((bits&T_MASK (land (bits@ enc) *DoubleToDecimal.T_MASK*))
+           (C_MIN!bits&T_MASK (lor *DoubleToDecimal.C_MIN* bits&T_MASK)))
+          C_MIN!bits&T_MASK))
+        ((denormp@ enc)
+         (acl2::b*
+          ((bits&T_MASK (land (bits@ enc) *DoubleToDecimal.T_MASK*)))
+          bits&T_MASK))
+        (t (c 1 (dp))))
+  ///
+  (fty::deffixequiv c@)
+  (defruled c@-as-c
+    (equal (c@ enc)
+           (c (v@ enc) (dp)))
+    :enable (bits@-as-enc@
+             bq@-as-expf@
+             normp@-as-expf@
+             denormp@-as-expf-manf@
+             manf@ expf@ manf expf sigf
+             v@ q-c-decode dp)
+    :disable (abs acl2::loghead acl2::logtail)
+    :use ((:instance lemma (enc (enc@ enc)))
+          (:instance manf@-as-loghead))
+    :prep-lemmas
+    ((gl::def-gl-ruled lemma
+       :hyp (acl2::ubyte64p enc)
+       :concl (and (equal (land (long-fix enc) #xfffffffffffff)
+                          (acl2::loghead 52 enc))
+                   (equal (lor #fx1p52 (acl2::loghead 52 enc))
+                          (+ #fx1p52 (acl2::loghead 52 enc))))
+       :g-bindings (gl::auto-bindings (:nat enc 64)))))
+  (defrule c@-type
+    (posp (c@ enc))
+    :rule-classes :type-prescription
+    :enable c@-as-c
+    :disable (c@ return-type-of-v@)
+    :use ((:instance c-type-when-finite-positive-binary
+                    (f (dp))
+                    (x (v@ enc)))
+          return-type-of-v@))
+  (defrule c@-linear
+    (<= (c@ enc) (CMax (dp)))
+    :rule-classes :linear
+    :enable c@-as-c
+    :use (:instance c-linear-when-finite-positive-binary
+                    (f (dp))
+                    (x (v@ enc))))
+  (defrule c@-linear-corr
+    (<= (c@ enc) #x1fffffffffffff)
+    :rule-classes :linear
+    :enable dp
+    :disable c@))
+
+(define out@
+  ((enc acl2::ubyte64p))
+  :returns (out@ acl2::sbyte32p :rule-classes :type-prescription)
+  (acl2::b*
+   ((int-c (l2i (c@ enc)))
+    (int-c&1 (iand int-c 1)))
+   int-c&1)
+  ///
+  (fty::deffixequiv out@)
   (acl2::with-arith5-help
-   (defrule q@-normp-linear
-     (implies (normp (enc@ enc) (dp))
-              (and (<= (Qmin (dp)) (q@ enc))
-                   (<= (q@ enc) (Qmax (dp)))))
-     :rule-classes ((:linear :trigger-terms ((q@ enc))))
-     :enable (normp bq@-as-expf@ expf@ iadd int-fix)))
-|#
-)
+  (defruled out@-as-c@
+    (equal (out@ enc)
+           (if (not (integerp (* 1/2 (c@ enc)))) 1 0))
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (unsigned-byte-p 53 c)
+       :concl (equal (iand (l2i c) 1)
+                     (acl2::logbit 0 c))
+      :g-bindings (gl::auto-bindings (:nat c 53)))))))
+
+(define c!=C_MIN@
+  ((enc acl2::ubyte64p))
+  :returns (c!=C_MIN@ acl2::sbyte32p)
+  (if (ifeq (lcmp (c@ enc) *DoubleToDecimal.C_MIN*)) 1 0)
+  ///
+  (fty::deffixequiv c!=C_MIN@)
+  (defruled c!=C_MIN@-as-c@
+    (equal (c!=C_MIN@ enc)
+           (if (= (c@ enc) (2^{P-1} (dp))) 0 1))
+    :enable (lcmp ifeq dp)))
+
+(define q==Q_MIN@
+  ((enc acl2::ubyte64p))
+  :returns (q==Q_MIN@ acl2::sbyte32p)
+  (if (if_icmpne (q@ enc) *DoubleToDecimal.Q_MIN*) 1 0)
+  ///
+  (fty::deffixequiv q==Q_MIN@)
+  (defruled q==Q_MIN@-as-q@
+    (equal (q==Q_MIN@ enc)
+           (if (= (q@ enc) (Qmin (dp))) 1 0))
+    :enable (if_icmpne dp)))
+
+(define c!=C_MIN!!q==Q_MIN@
+  ((enc acl2::ubyte64p))
+  :returns (yes booleanp :rule-classes ())
+  (ifeq (ior (c!=C_MIN@ enc) (q==Q_MIN@ enc)))
+  ///
+  (fty::deffixequiv c!=C_MIN!!q==Q_MIN@)
+  (defruled c!=C_MIN!!q==Q_MIN@-as-q-c@
+    (equal (c!=C_MIN!!q==Q_MIN@ enc)
+           (acl2::b*
+            ((f (dp))
+             (q (q@ enc))
+             (c (c@ enc)))
+            (or (not (= c (2^{P-1} f)))
+                (= q (Qmin f)))))
+    :enable (c!=C_MIN@-as-c@ q==Q_MIN@-as-q@)))
+
+(define qb@
+  ((enc acl2::ubyte64p))
+  :returns (qb@ integerp :rule-classes :type-prescription)
+  (if (c!=C_MIN!!q==Q_MIN@ enc)
+      (- (q@ enc) 1)
+    (- (q@ enc) 2))
+  ///
+  (fty::deffixequiv qb@)
+  (defrule qb@-linear
+    (let ((f (dp)))
+      (and (<= (1- (Qmin f)) (qb@ enc))
+           (<= (qb@ enc) (1- (Qmax f)))))
+    :rule-classes :linear
+    :enable (c!=C_MIN!!q==Q_MIN@-as-q-c@
+             q@-as-q))
+  (defrule qb@-linear-corr
+    (and (<= -1075 (qb@ enc))
+         (<= (qb@ enc) 970))
+    :rule-classes :linear
+    :enable dp
+    :disable qb@))
+
+(define cb@
+  ((enc acl2::ubyte64p))
+  :returns (cb@ acl2::sbyte64p)
+  (if (c!=C_MIN!!q==Q_MIN@ enc)
+      (acl2::b*
+       ((c<<1 (lshl (c@ enc) 1)))
+       c<<1)
+    (acl2::b*
+     ((c<<2 (lshl (c@ enc) 2)))
+     c<<2))
+  ///
+  (fty::deffixequiv cb@)
+  (defruled cb@-as-q-c@
+    (equal (cb@ enc)
+           (acl2::b*
+            ((f (dp))
+             (q (q@ enc))
+             (c (c@ enc)))
+            (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
+                (* 2 c)
+              (* 4 c))))
+    :enable c!=C_MIN!!q==Q_MIN@-as-q-c@
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (unsigned-byte-p 53 c)
+       :concl (and (equal (lshl c 1) (* 2 c))
+                   (equal (lshl c 2) (* 4 c)))
+       :g-bindings (gl::auto-bindings (:nat c 53)))))
+  (acl2::with-arith5-help
+   (defruled cb@-as-v@
+     (equal (cb@ enc) (* (v@ enc) (expt 2 (- (qb@ enc)))))
+     :enable (c!=C_MIN!!q==Q_MIN@-as-q-c@
+              cb@-as-q-c@ q@-as-q c@-as-c qb@ dp)
+     :use ((:instance finite-positive-binary-necc
+                      (f (dp))
+                      (x (v@ enc)))
+           return-type-of-v@)))
+  (defrule cb@-type
+    (and (integerp (cb@ enc))
+         (< 1 (cb@ enc)))
+    :rule-classes :type-prescription
+    :enable cb@-as-q-c@)
+  (defrule cb@-linear
+    (<= (cb@ enc) (* 4 (2^{P-1} (dp))))
+    :rule-classes :linear
+    :enable (cb@-as-q-c@ CMax)
+    :disable cb@)
+  (defrule cb@-linear-corr
+    (<= (cb@ enc) #fx1p54)
+    :rule-classes :linear
+    :enable dp
+    :disable cb@))
+
+(define cbr@
+  ((enc acl2::ubyte64p))
+  :returns (cbr@ acl2::sbyte64p)
+  (if (c!=C_MIN!!q==Q_MIN@ enc)
+      (acl2::b*
+       ((cb+1 (ladd (cb@ enc) 1)))
+       cb+1)
+    (acl2::b*
+     ((cb+2 (ladd (cb@ enc) 2)))
+     cb+2))
+  ///
+  (fty::deffixequiv cbr@))
+
