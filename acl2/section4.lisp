@@ -102,6 +102,13 @@
    :rule-classes :linear
    :enable (wid-Rv-as-c-q MIN_VALUE)))
 
+(acl2::with-arith5-help
+ (defruled wid-Rv<=max-ulp-when-finite-positive-binary
+   (implies (finite-positive-binary-p v f)
+            (<= (wid-Rv v f) (expt 2 (Qmax f))))
+   :rule-classes :linear
+   :enable (wid-Rv-as-c-q)))
+
 (defrule v-in-Rv
   (implies (pos-rationalp v)
            (in-tau-intervalp v (Rv v f)))

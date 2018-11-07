@@ -695,8 +695,7 @@
   ((e acl2::sbyte32p))
   :returns (ret acl2::sbyte32p)
   (acl2::b*
-   ((e (acl2::sbyte32-fix e))
-    (e (i2l e))
+   ((e (i2l e))
     (e*C_10 (lmul e *MathUtils.C_10*))
     (e*C_10>>Q_10 (lshr e*C_10 *MathUtils.Q_10*)))
    (l2i e*C_10>>Q_10))
@@ -707,8 +706,7 @@
   ((e acl2::sbyte32p))
   :returns (ret acl2::sbyte32p)
   (acl2::b*
-   ((e (acl2::sbyte32-fix e))
-    (e (i2l e))
+   ((e (i2l e))
     (e*C_10 (lmul e *MathUtils.C_10*))
     (e*C_10+A_10 (ladd e*C_10 *MathUtils.A_10*))
     (e*C_10+A_10>>Q_10 (lshr e*C_10+A_10 *MathUtils.Q_10*)))
@@ -720,8 +718,7 @@
   ((e acl2::sbyte32p))
   :returns (ret acl2::sbyte32p)
   (acl2::b*
-   ((e (acl2::sbyte32-fix e))
-    (e (i2l e))
+   ((e (i2l e))
     (e*C_2 (lmul e *MathUtils.C_2*))
     (e*C_2>>Q_2 (lshr e*C_2 *MathUtils.Q_2*)))
    (l2i e*C_2>>Q_2))
@@ -732,8 +729,7 @@
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
-   ((e (acl2::sbyte32-fix e))
-    (e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
+   ((e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
     (e-MIN_EXP<<1 (ishl e-MIN_EXP 1)))
    (MathUtils.ceilPow5d-laload e-MIN_EXP<<1))
   ///
@@ -743,8 +739,7 @@
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
-   ((e (acl2::sbyte32-fix e))
-    (e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
+   ((e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
     (e-MIN_EXP<<1 (ishl e-MIN_EXP 1))
     (e-MIN_EXP<<1!1 (ior e-MIN_EXP<<1 1)))
    (MathUtils.ceilPow5d-laload e-MIN_EXP<<1!1))
@@ -854,7 +849,7 @@
            (= (MathUtils.ceilPow5Low e) (acl2::loghead 63 (ceilPow5d e)))))
      :disable (expt (tau-system)))))
 
-(defruled MathUtils.flog2pow10-os-ord2
+(defruled MathUtils.flog2pow10-as-ord2
   (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                 (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
            (equal (MathUtils.flog2pow10 e)

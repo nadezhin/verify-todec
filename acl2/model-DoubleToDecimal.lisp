@@ -2,11 +2,13 @@
 ;;
 (in-package "RTL")
 (include-book "model-support")
-(include-book "section3")
+(include-book "model-MathUtils")
+(include-book "section4")
 
 (local (acl2::allow-arith5-help))
 
 (local (include-book "rtl/rel11/support/bits" :dir :system))
+(local (include-book "rtl/rel11/support/float" :dir :system))
 (local (include-book "rtl/rel11/support/reps" :dir :system))
 (local (include-book "centaur/gl/gl" :dir :system))
 
@@ -363,7 +365,19 @@
        (equal (iadd -1075 (expf@ enc))
               (+ -1075 (expf@ enc)))
        :enable (iadd sbyte32-suff)
-       :hints (("goal''" :in-theory (enable expf@)))))))
+       :hints (("goal''" :in-theory (enable expf@))))))
+  (defruled q@-linear
+    (and (<= (Qmin (dp)) (q@ enc))
+         (<= (q@ enc) (Qmax (dp))))
+    :rule-classes :linear
+    :enable q@-as-q
+    :disable q@)
+  (defrule q@-linear-corr
+    (and (<= -1074 (q@ enc))
+         (<= (q@ enc) 971))
+    :rule-classes :linear
+    :enable (q@-linear dp)
+    :disable q@))
 
 (define c@
   ((enc acl2::ubyte64p))
@@ -401,6 +415,11 @@
                    (equal (lor #fx1p52 (acl2::loghead 52 enc))
                           (+ #fx1p52 (acl2::loghead 52 enc))))
        :g-bindings (gl::auto-bindings (:nat enc 64)))))
+  (defruled c@-as-v@
+    (equal (c@ enc)
+           (* (v@ enc) (expt 2 (- (q@ enc)))))
+    :enable (q@-as-q c@-as-c c)
+    :disable c@)
   (defrule c@-type
     (posp (c@ enc))
     :rule-classes :type-prescription
@@ -452,7 +471,7 @@
   (defruled c!=C_MIN@-as-c@
     (equal (c!=C_MIN@ enc)
            (if (= (c@ enc) (2^{P-1} (dp))) 0 1))
-    :enable (lcmp ifeq dp)))
+    :enable (lcmp ifeq signum dp)))
 
 (define q==Q_MIN@
   ((enc acl2::ubyte64p))
@@ -465,26 +484,32 @@
            (if (= (q@ enc) (Qmin (dp))) 1 0))
     :enable (if_icmpne dp)))
 
-(define c!=C_MIN!!q==Q_MIN@
+(define even@
   ((enc acl2::ubyte64p))
   :returns (yes booleanp :rule-classes ())
   (ifeq (ior (c!=C_MIN@ enc) (q==Q_MIN@ enc)))
   ///
-  (fty::deffixequiv c!=C_MIN!!q==Q_MIN@)
-  (defruled c!=C_MIN!!q==Q_MIN@-as-q-c@
-    (equal (c!=C_MIN!!q==Q_MIN@ enc)
-           (acl2::b*
-            ((f (dp))
-             (q (q@ enc))
-             (c (c@ enc)))
-            (or (not (= c (2^{P-1} f)))
-                (= q (Qmin f)))))
-    :enable (c!=C_MIN@-as-c@ q==Q_MIN@-as-q@)))
+  (fty::deffixequiv even@)
+  (defruled even@-as-q-c@
+    (equal (even@ enc)
+           (or (not (= (c@ enc) (2^{P-1} (dp))))
+               (= (q@ enc) (Qmin (dp)))))
+    :enable (c!=C_MIN@-as-c@ q==Q_MIN@-as-q@))
+  (defruled c@-when-not-even@
+    (implies (not (even@ enc))
+             (equal (c@ enc) (2^{P-1} (dp))))
+    :enable even@-as-q-c@
+    :disable even@)
+  (defruled wid-Rv-as-even@
+    (equal (wid-Rv (v@ enc) (dp))
+           (* (if (even@ enc) 1 3/4) (expt 2 (q@ enc))))
+    :enable (even@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c )
+    :disable even@))
 
 (define qb@
   ((enc acl2::ubyte64p))
   :returns (qb@ integerp :rule-classes :type-prescription)
-  (if (c!=C_MIN!!q==Q_MIN@ enc)
+  (if (even@ enc)
       (- (q@ enc) 1)
     (- (q@ enc) 2))
   ///
@@ -494,7 +519,7 @@
       (and (<= (1- (Qmin f)) (qb@ enc))
            (<= (qb@ enc) (1- (Qmax f)))))
     :rule-classes :linear
-    :enable (c!=C_MIN!!q==Q_MIN@-as-q-c@
+    :enable (even@-as-q-c@
              q@-as-q))
   (defrule qb@-linear-corr
     (and (<= -1075 (qb@ enc))
@@ -506,7 +531,7 @@
 (define cb@
   ((enc acl2::ubyte64p))
   :returns (cb@ acl2::sbyte64p)
-  (if (c!=C_MIN!!q==Q_MIN@ enc)
+  (if (even@ enc)
       (acl2::b*
        ((c<<1 (lshl (c@ enc) 1)))
        c<<1)
@@ -517,14 +542,7 @@
   (fty::deffixequiv cb@)
   (defruled cb@-as-q-c@
     (equal (cb@ enc)
-           (acl2::b*
-            ((f (dp))
-             (q (q@ enc))
-             (c (c@ enc)))
-            (if (or (= q (Qmin f)) (not (= c (2^{P-1} f))))
-                (* 2 c)
-              (* 4 c))))
-    :enable c!=C_MIN!!q==Q_MIN@-as-q-c@
+           (* (if (even@ enc) 2 4) (c@ enc)))
     :prep-lemmas
     ((gl::def-gl-rule lemma
        :hyp (unsigned-byte-p 53 c)
@@ -534,32 +552,29 @@
   (acl2::with-arith5-help
    (defruled cb@-as-v@
      (equal (cb@ enc) (* (v@ enc) (expt 2 (- (qb@ enc)))))
-     :enable (c!=C_MIN!!q==Q_MIN@-as-q-c@
-              cb@-as-q-c@ q@-as-q c@-as-c qb@ dp)
-     :use ((:instance finite-positive-binary-necc
-                      (f (dp))
-                      (x (v@ enc)))
-           return-type-of-v@)))
+     :enable (cb@-as-q-c@ c@-as-v@ qb@)
+     :disable cb@))
   (defrule cb@-type
     (and (integerp (cb@ enc))
          (< 1 (cb@ enc)))
     :rule-classes :type-prescription
-    :enable cb@-as-q-c@)
-  (defrule cb@-linear
+    :enable cb@-as-q-c@
+    :disable cb@)
+  (defruled cb@-linear
     (<= (cb@ enc) (* 4 (2^{P-1} (dp))))
     :rule-classes :linear
-    :enable (cb@-as-q-c@ CMax)
+    :enable (cb@-as-q-c@ c@-when-not-even@ CMax)
     :disable cb@)
   (defrule cb@-linear-corr
     (<= (cb@ enc) #fx1p54)
     :rule-classes :linear
-    :enable dp
+    :enable (cb@-linear dp)
     :disable cb@))
 
 (define cbr@
   ((enc acl2::ubyte64p))
   :returns (cbr@ acl2::sbyte64p)
-  (if (c!=C_MIN!!q==Q_MIN@ enc)
+  (if (even@ enc)
       (acl2::b*
        ((cb+1 (ladd (cb@ enc) 1)))
        cb+1)
@@ -567,5 +582,190 @@
      ((cb+2 (ladd (cb@ enc) 2)))
      cb+2))
   ///
-  (fty::deffixequiv cbr@))
+  (fty::deffixequiv cbr@)
+  (defruled cbr@-as-cb@
+    (equal (cbr@ enc)
+           (+ (cb@ enc) (if (even@ enc) 1 2)))
+    :enable (ladd sbyte64-suff))
+  (acl2::with-arith5-help
+   (defruled cbr@-as-vr
+     (equal (cbr@ enc)
+            (* (vr (v@ enc) (dp)) (expt 2 (- (qb@ enc)))))
+     :enable (cbr@-as-cb@ cb@-as-q-c@  q@-as-q c@-as-c qb@ vr)
+     :disable cbr@))
+  (defrule cbr@-type
+    (and (integerp (cbr@ enc))
+         (< 1 (cbr@ enc)))
+    :rule-classes :type-prescription
+    :enable cbr@-as-cb@
+    :disable cbr@)
+  (defruled cbr@-linear
+    (<= (cbr@ enc) (+ 2 (* 4 (2^{P-1} (dp)))))
+    :rule-classes :linear
+    :enable (cbr@-as-cb@ cb@-linear)
+    :disable cbr@)
+  (defrule cbr@-linear-corr
+    (<= (cbr@ enc) #x40000000000002)
+    :rule-classes :linear
+    :enable (cbr@-linear dp)
+    :disable cbr@))
 
+(define k@
+  ((enc acl2::ubyte64p))
+  :returns (k@ acl2::sbyte32p)
+  (if (even@ enc)
+      (MathUtils.flog10pow2 (q@ enc))
+    (MathUtils.flog10threeQuartersPow2 (q@ enc)))
+  ///
+  (fty::deffixequiv k@)
+  (defruled k@-as-wid-Rv
+    (acl2::b*
+     ((wid (wid-Rv (v@ enc) (dp))))
+     (equal (k@ enc)
+            (1- (ordD wid))))
+    :enable (MathUtils.flog10pow2-as-ordD
+             MathUtils.flog10threeQuartersPow2-as-ordD
+             even@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c sbyte32-suff dp)
+    :use q@-linear)
+  (defrule k@-linear
+    (and (<= (- *MathUtils.MAX_EXP*) (k@ enc))
+         (<= (k@ enc) (- *MathUtils.MIN_EXP*)))
+    :rule-classes :linear
+    :enable (wid-Rv<=max-ulp-when-finite-positive-binary
+             wid-Rv>=MIN_VALUE k@-as-wid-Rv dp)
+    :disable k@
+    :use ((:instance result-1-4
+                     (x (MIN_VALUE (dp)))
+                     (y (wid-Rv (v@ enc) (dp))))
+          (:instance result-1-4
+                     (x (wid-Rv (v@ enc) (dp)))
+                     (y (expt 2 (Qmax (dp)))))
+          return-type-of-v@)))
+
+(acl2::with-arith5-help
+ (define alpha@
+   ((enc acl2::ubyte64p))
+   :returns (alpha@ pos-rationalp :rule-classes :type-prescription)
+   (acl2::b*
+    ((ulp2qb (expt 2 (qb@ enc)))
+     (ulpD/2 (* 1/2 (expt (D) (k@ enc)))))
+    (/ ulp2qb ulpD/2))
+   ///
+   (fty::deffixequiv alpha@)
+   (acl2::with-arith5-nonlinear-help
+    (defrule alpha@-linear
+      (and (<= 2/3 (alpha@ enc))
+           (< (alpha@ enc) (D)))
+      :enable (k@-as-wid-Rv wid-Rv-as-even@ qb@)
+      :use (:instance result-1-3
+                      (x (wid-Rv (v@ enc) (dp)))
+                      (k (ordD (wid-Rv (v@ enc) (dp)))))))
+   (acl2::with-arith5-nonlinear-help
+    (defrule alpha@-linear-when-even
+      (implies (even@ enc)
+               (<= 1 (alpha@ enc)))
+      :enable (k@-as-wid-Rv wid-Rv-as-even@ qb@)
+      :use (:instance result-1-3
+                      (x (wid-Rv (v@ enc) (dp)))
+                      (k (ordD (wid-Rv (v@ enc) (dp)))))))))
+
+(define ord2alpha@
+   ((enc acl2::ubyte64p))
+   :returns (alpha@ acl2::sbyte32p)
+   (if (even@ enc)
+       (acl2::b*
+        ((-k (ineg (k@ enc)))
+         (flog2pow10{-k} (MathUtils.flog2pow10 -k))
+         (q+flog2pow10{-k} (iadd (q@ enc) flog2pow10{-k}))
+         (q+flog2pow10{-k}+1 (iadd q+flog2pow10{-k} 1)))
+        q+flog2pow10{-k}+1)
+     (acl2::b*
+      ((-k (ineg (k@ enc)))
+       (flog2pow10{-k} (MathUtils.flog2pow10 -k))
+       (q+flog2pow10{-k} (iadd (q@ enc) flog2pow10{-k})))
+      q+flog2pow10{-k}))
+   ///
+   (fty::deffixequiv ord2alpha@)
+   (acl2::with-arith5-help
+    (defrule ord2alpa@-as-alpha@
+      (equal (ord2alpha@ enc)
+             (ord2 (alpha@ enc)))
+      :enable (MathUtils.flog2pow10-as-ord2
+               ineg iadd sbyte32-suff
+               alpha@ qb@ ord2 expe-shift)
+      :use k@-linear
+      :prep-lemmas
+      ((defrule expe-D^{-k}-linear
+         (and (<= -971 (expe (expt (D) (- (k@ enc))) 2))
+              (<= (expe (expt (D) (- (k@ enc))) 2) 1076))
+         :rule-classes :linear
+         :use ((:instance expe-monotone
+                          (x (expt (D) *MathUtils.MIN_EXP*))
+                          (y (expt (D) (- (k@ enc))))
+                          (b 2))
+               (:instance expe-monotone
+                          (x (expt (D) (- (k@ enc))))
+                          (y (expt (D) *MathUtils.MAX_EXP*))
+                          (b 2)))
+         :prep-lemmas
+         ((defrule lemma
+            (and (equal (expe (expt (D) *MathUtils.MIN_EXP*) 2) -971)
+                 (equal (expe (expt (D) *MathUtils.MAX_EXP*) 2) 1076))
+            :enable ((D))))))))
+   (defrule ord2alpha@-linear
+     (and (<= 0 (ord2alpha@ enc))
+          (<= (ord2alpha@ enc) 4))
+     :rule-classes :linear
+     :enable (ord2 (D))
+     :use (alpha@-linear
+           (:instance expe-monotone
+                      (x 2/3)
+                      (y (alpha@ enc))
+                      (b 2))
+           (:instance expe-monotone
+                      (x (alpha@ enc))
+                      (y (D))
+                      (b 2))))
+   (defrule ord2alpha@-when-even
+     (implies (even@ enc)
+              (<= 1 (ord2alpha@ enc)))
+     :rule-classes :linear
+     :enable ord2
+     :use (:instance expe-monotone
+                     (x 1)
+                     (y (alpha@ enc))
+                     (b 2))))
+
+(define cbl@
+  ((enc acl2::ubyte64p))
+  :returns (cbr@ acl2::sbyte64p)
+  (acl2::b*
+   ((cb-1 (lsub (cb@ enc) 1)))
+   cb-1)
+  ///
+  (fty::deffixequiv cbl@)
+  (defruled cbl@-as-cb@
+    (equal (cbl@ enc) (- (cb@ enc) 1))
+    :enable (lsub sbyte64-suff))
+  (acl2::with-arith5-help
+   (defruled cbl@-as-vl
+     (equal (cbl@ enc)
+            (* (vl (v@ enc) (dp)) (expt 2 (- (qb@ enc)))))
+     :enable (even@-as-q-c@
+              cbl@-as-cb@ cb@-as-q-c@ q@-as-q c@-as-c qb@ vl-alt)
+     :disable cbl@))
+  (defrule cbl@-type
+    (posp (cbl@ enc))
+    :rule-classes :type-prescription
+    :enable cbl@-as-cb@
+    :disable cbl@)
+  (defruled cbl@-linear
+    (<= (cbl@ enc) (+ -1 (* 4 (2^{P-1} (dp)))))
+    :rule-classes :linear
+    :enable (cbl@-as-cb@ cb@-linear)
+    :disable cbl@)
+  (defrule cbl@-linear-corr
+    (<= (cbl@ enc) #x3fffffffffffff)
+    :rule-classes :linear
+    :enable (cbl@-linear dp)
+    :disable cbl@))

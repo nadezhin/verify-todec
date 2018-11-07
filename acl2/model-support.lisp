@@ -169,6 +169,15 @@
   ///
   (fty::deffixequiv ifne))
 
+(define ineg
+  ((x acl2::sbyte32p))
+  :returns (result acl2::sbyte32p)
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x)))
+   (int-fix (- x)))
+  ///
+  (fty::deffixequiv ineg))
+
 (define ior
   ((x acl2::sbyte32p)
    (y acl2::sbyte32p))
@@ -311,30 +320,6 @@
   ///
   (fty::deffixequiv lor))
 
-(define lshl
-  ((x acl2::sbyte64p)
-   (y acl2::sbyte32p))
-  :returns (results acl2::sbyte64p)
-  (acl2::b*
-   ((x (acl2::sbyte64-fix x))
-    (y (acl2::sbyte32-fix y))
-    (n (acl2::loghead 6 y)))
-   (long-fix (ash x n)))
-  ///
-  (fty::deffixequiv lshl))
-
-(define lshr
-  ((x acl2::sbyte64p)
-   (y acl2::sbyte32p))
-  :returns (results acl2::sbyte64p)
-  (acl2::b*
-   ((x (acl2::sbyte64-fix x))
-    (y (acl2::sbyte32-fix y))
-    (n (acl2::loghead 6 y)))
-   (long-fix (ash x (- n))))
-  ///
-  (fty::deffixequiv lshr))
-
 (define lrem
   ((x acl2::sbyte64p)
    (y acl2::sbyte64p))
@@ -377,6 +362,41 @@
               (natp (lrem x y)))
      :rule-classes :type-prescription
      :use lrem-when-nonnegative-args)))
+
+(define lshl
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte32p))
+  :returns (results acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte32-fix y))
+    (n (acl2::loghead 6 y)))
+   (long-fix (ash x n)))
+  ///
+  (fty::deffixequiv lshl))
+
+(define lshr
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte32p))
+  :returns (results acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte32-fix y))
+    (n (acl2::loghead 6 y)))
+   (long-fix (ash x (- n))))
+  ///
+  (fty::deffixequiv lshr))
+
+(define lsub
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (long-fix (- x y)))
+  ///
+  (fty::deffixequiv lsub))
 
 (define lushr
   ((x acl2::sbyte64p)
