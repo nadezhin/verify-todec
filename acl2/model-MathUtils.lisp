@@ -725,7 +725,7 @@
   ///
   (fty::deffixequiv MathUtils.flog2pow10))
 
-(define MathUtils.ceilPow5High
+(define MathUtils.ceilPow5dHigh
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
@@ -733,9 +733,9 @@
     (e-MIN_EXP<<1 (ishl e-MIN_EXP 1)))
    (MathUtils.ceilPow5d-laload e-MIN_EXP<<1))
   ///
-  (fty::deffixequiv MathUtils.ceilPow5High))
+  (fty::deffixequiv MathUtils.ceilPow5dHigh))
 
-(define MathUtils.ceilPow5Low
+(define MathUtils.ceilPow5dLow
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
@@ -744,7 +744,7 @@
     (e-MIN_EXP<<1!1 (ior e-MIN_EXP<<1 1)))
    (MathUtils.ceilPow5d-laload e-MIN_EXP<<1!1))
   ///
-  (fty::deffixequiv MathUtils.ceilPow5Low))
+  (fty::deffixequiv MathUtils.ceilPow5dLow))
 
 (defrulel enumerateQ
   (implies (and (<= (Qmin (dp)) (acl2::sbyte32-fix e))
@@ -821,9 +821,9 @@
         (<= *MathUtils.MIN_EXP* e)
         (<= e *MathUtils.MAX_EXP*))
    (and (equal (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-        (equal (MathUtils.ceilPow5High e) (floorPow5d e))
-        (equal (MathUtils.ceilPow5High e) (acl2::logtail 63 (ceilPow5d e)))
-        (equal (MathUtils.ceilPow5Low e) (acl2::loghead 63 (ceilPow5d e)))))
+        (equal (MathUtils.ceilPow5dHigh e) (floorPow5d e))
+        (equal (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
+        (equal (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))))
   :disable (acl2::loghead acl2::logtail)
   :use (:instance ok-below-lemma (emax *MathUtils.MAX_EXP*))
   :prep-lemmas
@@ -832,9 +832,9 @@
      (or (not (integerp e))
          (< e *MathUtils.MIN_EXP*)
          (and (= (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-              (= (MathUtils.ceilPow5High e) (floorPow5d e))
-              (= (MathUtils.ceilPow5High e) (acl2::logtail 63 (ceilPow5d e)))
-              (= (MathUtils.ceilPow5Low e) (acl2::loghead 63 (ceilPow5d e)))
+              (= (MathUtils.ceilPow5dHigh e) (floorPow5d e))
+              (= (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
+              (= (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))
               (ok-below (1- e)))))
    (defrule ok-below-lemma
      (implies
@@ -844,9 +844,9 @@
            (<= e emax)
            (ok-below emax))
       (and (= (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-           (= (MathUtils.ceilPow5High e) (floorPow5d e))
-           (= (MathUtils.ceilPow5High e) (acl2::logtail 63 (ceilPow5d e)))
-           (= (MathUtils.ceilPow5Low e) (acl2::loghead 63 (ceilPow5d e)))))
+           (= (MathUtils.ceilPow5dHigh e) (floorPow5d e))
+           (= (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
+           (= (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))))
      :disable (expt (tau-system)))))
 
 (defruled MathUtils.flog2pow10-as-ord2
@@ -859,20 +859,20 @@
 (defruled MathUtils.ceilPow5dHigh-as-ceil
   (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                 (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5High e)
+           (equal (MathUtils.ceilPow5dHigh e)
                   (acl2::logtail 63 (ceilPow5d (acl2::sbyte32-fix e)))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))
 
 (defruled MathUtils.ceilPow5dLow-as-ceil
    (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                  (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5Low e)
+           (equal (MathUtils.ceilPow5dLow e)
                   (acl2::loghead 63 (ceilPow5d (acl2::sbyte32-fix e)))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))
 
 (defruled MathUtils.ceilPow5dHigh-as-floor
   (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                 (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5High e)
+           (equal (MathUtils.ceilPow5dHigh e)
                   (floorPow5d (acl2::sbyte32-fix e))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))

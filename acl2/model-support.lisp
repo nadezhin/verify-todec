@@ -159,6 +159,16 @@
   ///
   (fty::deffixequiv ifle))
 
+(define iflt
+  ((x acl2::sbyte32p))
+  :returns (continue booleanp :rule-classes ())
+  (acl2::b*
+   ((x (acl2::sbyte32-fix x))
+    (jmp (< x 0)))
+   (not jmp))
+  ///
+  (fty::deffixequiv iflt))
+
 (define ifne
   ((x acl2::sbyte32p))
   :returns (continue booleanp :rule-classes ())
@@ -192,7 +202,7 @@
 (define ishl
   ((x acl2::sbyte32p)
    (y acl2::sbyte32p))
-  :returns (results acl2::sbyte32p)
+  :returns (result acl2::sbyte32p)
   (acl2::b*
    ((x (acl2::sbyte32-fix x))
     (y (acl2::sbyte32-fix y))
@@ -366,7 +376,7 @@
 (define lshl
   ((x acl2::sbyte64p)
    (y acl2::sbyte32p))
-  :returns (results acl2::sbyte64p)
+  :returns (result acl2::sbyte64p)
   (acl2::b*
    ((x (acl2::sbyte64-fix x))
     (y (acl2::sbyte32-fix y))
@@ -378,7 +388,7 @@
 (define lshr
   ((x acl2::sbyte64p)
    (y acl2::sbyte32p))
-  :returns (results acl2::sbyte64p)
+  :returns (result acl2::sbyte64p)
   (acl2::b*
    ((x (acl2::sbyte64-fix x))
     (y (acl2::sbyte32-fix y))
@@ -401,7 +411,7 @@
 (define lushr
   ((x acl2::sbyte64p)
    (y acl2::sbyte32p))
-  :returns (results acl2::sbyte64p)
+  :returns (result acl2::sbyte64p)
   (acl2::b*
    ((x (acl2::sbyte64-fix x))
     (y (acl2::sbyte32-fix y))
@@ -411,3 +421,49 @@
   ///
   (fty::deffixequiv lushr))
 
+(defconst *Long.SIZE* 64)
+(defconst *Double.SIZE* 64)
+
+(define Double.doubleToRawLongBits
+  ((enc acl2::ubyte64p))
+  :returns (result acl2::sbyte64p)
+  (long-fix (acl2::ubyte64-fix enc))
+  ///
+  (fty::deffixequiv Double.doubleToRawLongBits))
+
+(define Math.multiplyHigh
+  ((x acl2::sbyte64p)
+   (y acl2::sbyte64p))
+  :returns (result acl2::sbyte64p)
+  (acl2::b*
+   ((x (acl2::sbyte64-fix x))
+    (y (acl2::sbyte64-fix y)))
+   (long-fix (acl2::logtail 64 (* x y))))
+  ///
+  (fty::deffixequiv Math.multiplyHigh)
+  (acl2::with-arith5-nonlinear-help
+   (defrule Math.multiplyHigh-when-unsigned
+     (implies (and (natp x)
+                   (< x #fx1p63)
+                   (natp y)
+                   (< y #fx1p63))
+              (equal (Math.multiplyHigh x y)
+                     (acl2::logtail 64 (* x y))))
+     :enable (sbyte64-suff)))
+  (defrule Math.multilyHigh-type-when-unsigned
+     (implies (and (natp x)
+                   (< x #fx1p63)
+                   (natp y)
+                   (< y #fx1p63))
+              (natp (Math.multiplyHigh x y)))
+     :rule-classes :type-prescription
+     :disable Math.multiplyHigh)
+  (acl2::with-arith5-nonlinear-help
+   (defrule Math.multilyHigh-linear-when-unsigned
+     (implies (and (natp x)
+                   (< x #fx1p63)
+                   (natp y)
+                   (< y #fx1p63))
+              (< (Math.multiplyHigh x y) #fx1p62))
+     :rule-classes :linear
+     :disable Math.multiplyHigh)))
