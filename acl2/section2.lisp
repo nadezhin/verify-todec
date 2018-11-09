@@ -1,49 +1,117 @@
 (in-package "RTL")
 (include-book "section1")
 
+(local (include-book "rtl/rel11/support/bits" :dir :system))
 (local (include-book "rtl/rel11/support/float" :dir :system))
 (local (acl2::allow-arith5-help))
 
 ; Section 2 of the paper
 
-(define recover-p
-  ((d_ integerp)
-   (i integerp)
-   (v real/rationalp)
-   (f formatp))
-  :guard (or (nrepp v f) (drepp v f))
-  :returns (yes booleanp :rule-classes ())
-  (acl2::b*
-   ((d_ (ifix d_))
-    (i (ifix i))
-    (v (realfix v))
-    (f (format-fix f))
-    (dv (* d_ (expt (D) i))))
-   (or (and (nrepp v f) (equal v (rnd dv 'rne (prec f))))
-       (and (drepp v f) (equal v (drnd dv 'rne f)))))
-  ///
-  (fty::deffixequiv recover-p))
+(defconst *roundTiedToEven* 'rne)
 
-(defun-sk best-recover (d* i* v f)
+(define recover
+  ((d integerp)
+   (i integerp)
+   (f formatp))
+  :returns (v rationalp :rule-classes :type-prescription)
+  (acl2::b*
+   ((d (ifix d))
+    (i (ifix i))
+    (f (format-fix f))
+    (dv (* d (expt (D) i))))
+   (if (<= (spn f) (abs dv))
+       (rnd dv *roundTiedToEven* (prec f))
+     (drnd dv *roundTiedToEven* f)))
+  ///
+  (fty::deffixequiv recover))
+
+(define D-length
+  ((d integerp))
+  :returns (D-length natp :rule-classes :type-prescription
+                     :hints (("goal" :in-theory (enable (D))
+                              :use (:instance expe-monotone
+                                             (b (D))
+                                             (x 1)
+                                             (y d)))))
+  (if (zip d)
+      0
+    (+ 1 (expe d (D))))
+  ///
+  (fty::deffixequiv D-length)
+  (defrule D-length-type-when-nonzero
+    (implies (not (zip d))
+             (posp (D-length d)))
+    :rule-classes :type-prescription
+    :in-theory (enable (D))
+    :use (:instance expe-monotone
+                    (b (D))
+                    (x 1)
+                    (y d))))
+
+(define D-value
+  ((d integerp)
+   (i integerp))
+  :returns (value rationalp :rule-classes :type-prescription)
+  (* (ifix d) (expt 2 i))
+  ///
+  (fty::deffixequiv D-value))
+
+(define D-even
+  ((d integerp))
+  :returns (yes booleanp :rule-classes ())
+  (evenp (digitn (abs (ifix d)) 0 (D)))
+  ///
+  (fty::deffixequiv D-even)
+  (acl2::with-arith5-help
+  (defruled D-even-as-eveno
+    (equal (D-even d)
+           (evenp (ifix d)))
+    :enable (digitn-rec-0 (D)))))
+
+(define better
+  ((d1 integerp)
+   (i1 integerp)
+   (d2 integerp)
+   (i2 integerp)
+   (v real/rationalp))
+  :returns (better booleanp :rule-classes ())
+  (acl2::b*
+   ((v (realfix v)))
+   (or (< (D-length d1)
+          (D-length d2))
+       (and (= (D-length d1)
+               (D-length d2))
+            (< (abs (- (D-value d1 i1) v))
+               (abs (- (D-value d2 i2) v))))
+       (and (= (D-length d1)
+               (D-length d2))
+            (= (abs (- (D-value d1 i1) v))
+               (abs (- (D-value d2 i2) v)))
+            (D-even d1)
+            (not (D-even d2)))))
+  ///
+  (fty::deffixequiv better :hints (("goal" :in-theory (disable ifix)))))
+
+(defun-sk exists-better (d* i* f)
   (declare (xargs :guard (and (integerp d*)
                               (integerp i*)
-                              (real/rationalp v)
-                              (formatp f)
-                              (or (nrepp v f) (drepp v f)))))
-  (forall (d? i?)
-          (or (not (integerp d?))
-              (not (integerp i?))
-              (not (recover-p d? i? v f))
-              (and (equal d? d*) (equal i? i*))
-              (< i? i*)
-              (and (equal i? i*)
-                   (< (abs (- (* d? (expt (D) i?)) v))
-                      (abs (- (* d* (expt (D) i*)) v))))
-              (and (equal i? i*)
-                   (= (abs (- (* d? (expt (D) i?)) v))
-                      (abs (- (* d* (expt (D) i*)) v)))
-                   (oddp d?)))))
+                              (formatp f))))
+  (exists (d? i?)
+          (let ((v (recover d* i* f)))
+            (and (integerp d?)
+                 (integerp i?)
+                 (= (recover d? i? f) v)
+                 (better d? i? d* i* v)))))
 
+(define specification
+  ((d integerp)
+   (i integerp)
+   (f formatp)
+   (v real/rationalp))
+  (and (= (recover d i f) (realfix v))
+       (not (exists-better (ifix d) (ifix i) (format-fix f))))
+  ///
+  (fty::deffixequiv specification :hints (("goal" :in-theory (disable ifix)))))
 
 (define ord2
   ((x pos-rationalp))
