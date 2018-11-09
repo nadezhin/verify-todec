@@ -3,7 +3,20 @@
 
 (local (include-book "rtl/rel11/support/bits" :dir :system))
 (local (include-book "rtl/rel11/support/float" :dir :system))
+(local (include-book "rtl/rel11/support/reps" :dir :system))
+(local (include-book "rtl/rel11/support/round" :dir :system))
 (local (acl2::allow-arith5-help))
+
+;(local (defcong acl2::int-equiv acl2::int-equiv (- x) 1))
+;(local (defcong real-equiv real-equiv (- x) 1))
+
+(defruledl minus-ifix
+  (equal (- (ifix x))
+         (ifix (- x))))
+
+(defruledl minus-realfix
+  (equal (- (realfix x))
+         (realfix (- x))))
 
 ; Section 2 of the paper
 
@@ -23,30 +36,30 @@
        (rnd dv *roundTiedToEven* (prec f))
      (drnd dv *roundTiedToEven* f)))
   ///
-  (fty::deffixequiv recover))
+  (fty::deffixequiv recover)
+  (acl2::with-arith5-help
+   (defrule recover-minus
+     (equal (recover (- d) i f)
+            (- (recover d i f)))
+     :enable (rnd-minus drnd-minus)
+     :cases ((zip d))
+     :hints (("subgoal 1" :in-theory (enable drnd))))))
 
 (define D-length
   ((d integerp))
-  :returns (D-length natp :rule-classes :type-prescription
+  :returns (D-length posp :rule-classes :type-prescription
                      :hints (("goal" :in-theory (enable (D))
                               :use (:instance expe-monotone
                                              (b (D))
                                              (x 1)
-                                             (y d)))))
-  (if (zip d)
-      0
-    (+ 1 (expe d (D))))
+                                             (y (ifix d))))))
+  (+ 1 (expe (ifix d) (D)))
   ///
   (fty::deffixequiv D-length)
-  (defrule D-length-type-when-nonzero
-    (implies (not (zip d))
-             (posp (D-length d)))
-    :rule-classes :type-prescription
-    :in-theory (enable (D))
-    :use (:instance expe-monotone
-                    (b (D))
-                    (x 1)
-                    (y d))))
+  (defrule D-length-minus
+    (equal (D-length (- d))
+           (D-length d))
+    :cases ((integerp d))))
 
 (define D-value
   ((d integerp)
@@ -54,7 +67,11 @@
   :returns (value rationalp :rule-classes :type-prescription)
   (* (ifix d) (expt 2 i))
   ///
-  (fty::deffixequiv D-value))
+  (fty::deffixequiv D-value)
+  (acl2::with-arith5-help
+   (defrule D-value-minis
+     (equal (D-value (- d) i)
+            (- (D-value d i))))))
 
 (define D-even
   ((d integerp))
@@ -66,7 +83,10 @@
   (defruled D-even-as-eveno
     (equal (D-even d)
            (evenp (ifix d)))
-    :enable (digitn-rec-0 (D)))))
+    :enable (digitn-rec-0 (D)))
+  (defrule D-even-minus
+    (equal (D-even (- d))
+           (D-even d)))))
 
 (define better
   ((d1 integerp)
@@ -90,29 +110,125 @@
             (D-even d1)
             (not (D-even d2)))))
   ///
-  (fty::deffixequiv better :hints (("goal" :in-theory (disable ifix)))))
+  (fty::deffixequiv better :hints (("goal" :in-theory (disable ifix))))
+  (acl2::with-arith5-help
+   (defruled better-minus
+     (equal (better d1 i1 d2 i2 (- v))
+            (better (- d1) i1 (- d2) i2 v))
+     :use (:instance lemma
+                     (d1 (ifix d1))
+                     (d2 (ifix d2))
+                     (v (realfix v)))
+     :enable (minus-ifix minus-realfix)
+     :prep-lemmas
+     ((defrule lemma
+        (implies (and (integerp d1)
+                      (integerp d2)
+                      (real/rationalp v))
+                 (equal (better d1 i1 d2 i2 (- v))
+                        (better (- d1) i1 (- d2) i2 v))))))))
 
-(defun-sk exists-better (d* i* f)
+(defun-sk exists-better (d* i* f minlen)
   (declare (xargs :guard (and (integerp d*)
                               (integerp i*)
-                              (formatp f))))
+                              (formatp f)
+                              (posp minlen))))
   (exists (d? i?)
           (let ((v (recover d* i* f)))
             (and (integerp d?)
                  (integerp i?)
+                 (<= minlen (D-length d?))
                  (= (recover d? i? f) v)
                  (better d? i? d* i* v)))))
+(in-theory (disable exists-better))
 
-(define specification
+(acl2::with-arith5-help
+ (defruled exists-better-minus
+   (implies (and (integerp d*)
+                 (integerp i*)
+                 (formatp f)
+                 (posp minlen))
+            (implies (exists-better (- d*) i* f minlen)
+                     (exists-better d* i* f minlen)))
+   :enable better-minus
+   :use
+   ((:instance exists-better
+               (d* (- d*)))
+    (:instance exists-better-suff
+               (d? (- (mv-nth 0 (exists-better-witness (- d*) i* f minlen))))
+               (i? (mv-nth 1 (exists-better-witness (- d*) i* f minlen)))))))
+
+(define selection-spec
   ((d integerp)
    (i integerp)
+   (v real/rationalp)
    (f formatp)
-   (v real/rationalp))
-  (and (= (recover d i f) (realfix v))
-       (not (exists-better (ifix d) (ifix i) (format-fix f))))
+   (minlen posp))
+  :returns (yes booleanp :rule-classes ())
+  (acl2::b*
+   ((d (ifix d))
+    (i (ifix i))
+    (v (realfix v))
+    (f (format-fix f))
+    (minlen (acl2::pos-fix minlen)))
+  (and (<= minlen (D-length d))
+       (= (recover d i f) v)
+       (not (exists-better d i f minlen))))
   ///
-  (fty::deffixequiv specification :hints (("goal" :in-theory (disable ifix)))))
+  (fty::deffixequiv selection-spec :hints (("goal" :in-theory (disable ifix))))
+  (acl2::with-arith5-nonlinear-help
+   (defruled selection-spec-minus
+     (equal (selection-spec d i (- v) f minlen)
+            (selection-spec (- d) i v f minlen))
+     :use (:instance lemma
+                     (d (ifix d))
+                     (i (ifix i)))
+     :enable minus-ifix
+     :prep-lemmas
+     ((acl2::with-arith5-help
+       (defruled lemma
+         (implies (and (integerp d)
+                       (integerp i))
+                  (equal (selection-spec d i (- v) f minlen)
+                         (selection-spec (- d) i v f minlen)))
+         :enable exists-better-minus))))))
+#|
+(rule
+ (implies (and (specification d1 i1 v f minlen)
+               (specification d2 i2 v f minlen)
+               (not (= (realfix v) 0)))
 
+          (equal (D-value d1 i1) (D-value d2 i2)))
+ :enable specification
+ :disable exists-better
+ :prep-lemmas
+ ((defrule lemma1
+    (implies (and (specification d1 i1 v f minlen)
+                  (specification d2 i2 v f minlen))
+             (equal (D-length d1) (D-length d2)))
+    :enable (specification better)
+    :disable (exists-better ifix)
+    :cases ((< (D-length d1) (D-length d2))
+            (> (D-length d1) (D-length d2)))
+    :hints
+    (("subgoal 2" :use (:instance exists-better-suff
+                                  (d* (ifix d2))
+                                  (i* (ifix i2))
+                                  (f (format-fix f))
+                                  (minlen (acl2::pos-fix minlen))
+                                  (d? (ifix d1))
+                                  (i? (ifix i1))))
+     ("subgoal 1" :use (:instance exists-better-suff
+                                  (d* (ifix d1))
+                                  (i* (ifix i1))
+                                  (f (format-fix f))
+                                  (minlen (acl2::pos-fix minlen))
+                                  (d? (ifix d2))
+                                  (i? (ifix i2))))))
+
+  )
+ )
+|#
 (define ord2
   ((x pos-rationalp))
   :returns (ord2 integerp :rule-classes ())
