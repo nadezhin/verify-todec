@@ -493,32 +493,32 @@
            (if (= (q@ enc) (Qmin (dp))) 1 0))
     :enable (if_icmpne dp)))
 
-(define even@
+(define regular@
   ((enc acl2::ubyte64p))
   :returns (yes booleanp :rule-classes ())
   (ifeq (ior (c!=C_MIN@ enc) (q==Q_MIN@ enc)))
   ///
-  (fty::deffixequiv even@)
-  (defruled even@-as-q-c@
-    (equal (even@ enc)
+  (fty::deffixequiv regular@)
+  (defruled regular@-as-q-c@
+    (equal (regular@ enc)
            (or (not (= (c@ enc) (2^{P-1} (dp))))
                (= (q@ enc) (Qmin (dp)))))
     :enable (c!=C_MIN@-as-c@ q==Q_MIN@-as-q@))
-  (defruled c@-when-not-even@
-    (implies (not (even@ enc))
+  (defruled c@-when-not-regular@
+    (implies (not (regular@ enc))
              (equal (c@ enc) (2^{P-1} (dp))))
-    :enable even@-as-q-c@
-    :disable even@)
-  (defruled wid-Rv-as-even@
+    :enable regular@-as-q-c@
+    :disable regular@)
+  (defruled wid-Rv-as-regular@
     (equal (wid-Rv (v@ enc) (dp))
-           (* (if (even@ enc) 1 3/4) (expt 2 (q@ enc))))
-    :enable (even@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c )
-    :disable even@))
+           (* (if (regular@ enc) 1 3/4) (expt 2 (q@ enc))))
+    :enable (regular@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c )
+    :disable regular@))
 
 (define qb@
   ((enc acl2::ubyte64p))
   :returns (qb@ integerp :rule-classes :type-prescription)
-  (if (even@ enc)
+  (if (regular@ enc)
       (- (q@ enc) 1)
     (- (q@ enc) 2))
   ///
@@ -528,7 +528,7 @@
       (and (<= (1- (Qmin f)) (qb@ enc))
            (<= (qb@ enc) (1- (Qmax f)))))
     :rule-classes :linear
-    :enable (even@-as-q-c@
+    :enable (regular@-as-q-c@
              q@-as-q))
   (defrule qb@-linear-corr
     (and (<= -1075 (qb@ enc))
@@ -540,7 +540,7 @@
 (define cb@
   ((enc acl2::ubyte64p))
   :returns (cb@ acl2::sbyte64p)
-  (if (even@ enc)
+  (if (regular@ enc)
       (acl2::b*
        ((c<<1 (lshl (c@ enc) 1)))
        c<<1)
@@ -551,7 +551,7 @@
   (fty::deffixequiv cb@)
   (defruled cb@-as-q-c@
     (equal (cb@ enc)
-           (* (if (even@ enc) 2 4) (c@ enc)))
+           (* (if (regular@ enc) 2 4) (c@ enc)))
     :prep-lemmas
     ((gl::def-gl-rule lemma
        :hyp (unsigned-byte-p 53 c)
@@ -572,7 +572,7 @@
   (defruled cb@-linear
     (<= (cb@ enc) (* 4 (2^{P-1} (dp))))
     :rule-classes :linear
-    :enable (cb@-as-q-c@ c@-when-not-even@ CMax)
+    :enable (cb@-as-q-c@ c@-when-not-regular@ CMax)
     :disable cb@)
   (defrule cb@-linear-corr
     (<= (cb@ enc) #fx1p54)
@@ -583,7 +583,7 @@
 (define cbr@
   ((enc acl2::ubyte64p))
   :returns (cbr@ acl2::sbyte64p)
-  (if (even@ enc)
+  (if (regular@ enc)
       (acl2::b*
        ((cb+1 (ladd (cb@ enc) 1)))
        cb+1)
@@ -594,7 +594,7 @@
   (fty::deffixequiv cbr@)
   (defruled cbr@-as-cb@
     (equal (cbr@ enc)
-           (+ (cb@ enc) (if (even@ enc) 1 2)))
+           (+ (cb@ enc) (if (regular@ enc) 1 2)))
     :enable (ladd sbyte64-suff))
   (acl2::with-arith5-help
    (defruled cbr@-as-vr
@@ -622,7 +622,7 @@
 (define k@
   ((enc acl2::ubyte64p))
   :returns (k@ acl2::sbyte32p)
-  (if (even@ enc)
+  (if (regular@ enc)
       (MathUtils.flog10pow2 (q@ enc))
     (MathUtils.flog10threeQuartersPow2 (q@ enc)))
   ///
@@ -634,7 +634,7 @@
             (1- (ordD wid))))
     :enable (MathUtils.flog10pow2-as-ordD
              MathUtils.flog10threeQuartersPow2-as-ordD
-             even@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c sbyte32-suff dp)
+             regular@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c sbyte32-suff dp)
     :use q@-linear)
   (defrule k@-linear
     (and (<= (- *MathUtils.MAX_EXP*) (k@ enc))
@@ -665,15 +665,15 @@
     (defrule alpha@-linear
       (and (<= 2/3 (alpha@ enc))
            (< (alpha@ enc) (D)))
-      :enable (k@-as-wid-Rv wid-Rv-as-even@ qb@)
+      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@)
       :use (:instance result-1-3
                       (x (wid-Rv (v@ enc) (dp)))
                       (k (ordD (wid-Rv (v@ enc) (dp)))))))
    (acl2::with-arith5-nonlinear-help
-    (defrule alpha@-linear-when-even
-      (implies (even@ enc)
+    (defrule alpha@-linear-when-regular
+      (implies (regular@ enc)
                (<= 1 (alpha@ enc)))
-      :enable (k@-as-wid-Rv wid-Rv-as-even@ qb@)
+      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@)
       :use (:instance result-1-3
                       (x (wid-Rv (v@ enc) (dp)))
                       (k (ordD (wid-Rv (v@ enc) (dp)))))))))
@@ -681,7 +681,7 @@
 (define ord2alpha@
    ((enc acl2::ubyte64p))
    :returns (alpha@ acl2::sbyte32p)
-   (if (even@ enc)
+   (if (regular@ enc)
        (acl2::b*
         ((-k (ineg (k@ enc)))
          (flog2pow10{-k} (MathUtils.flog2pow10 -k))
@@ -735,8 +735,8 @@
                       (x (alpha@ enc))
                       (y (D))
                       (b 2))))
-   (defrule ord2alpha@-when-even
-     (implies (even@ enc)
+   (defrule ord2alpha@-when-regular
+     (implies (regular@ enc)
               (<= 1 (ord2alpha@ enc)))
      :rule-classes :linear
      :enable (ord2alpha@-as-alpha@ ord2)
@@ -760,7 +760,7 @@
    (defruled cbl@-as-vl
      (equal (cbl@ enc)
             (* (vl (v@ enc) (dp)) (expt 2 (- (qb@ enc)))))
-     :enable (even@-as-q-c@
+     :enable (regular@-as-q-c@
               cbl@-as-cb@ cb@-as-q-c@ q@-as-q c@-as-c qb@ vl-alt)
      :disable cbl@))
   (defrule cbl@-type
@@ -1170,7 +1170,7 @@
          (<= x CbMax)
          (<= 0 err)
          (< err #fx1p-64)
-         (even@ enc)
+         (regular@ enc)
          (posp n))
     (equal (round-Newmann-approx (/ approx n) (/ #fx1p-64 n))
            (round-Newmann (/ alpha*x n)))))
@@ -1180,16 +1180,16 @@
   :prep-lemmas
   ((acl2::with-arith5-help
     (defrule lemma
-      (implies (even@ enc)
+      (implies (regular@ enc)
                (equal (alpha@ enc)
                       (/ (expt 2 (q@ enc))
                          (expt (D) (1- (ordD (expt 2 (q@ enc))))))))
-      :enable (alpha@ k@-as-wid-Rv even@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c
+      :enable (alpha@ k@-as-wid-Rv regular@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c
                       qb@)))))
 
 
 (defruledl round-Newmann-approx-lemma-cb
-   (implies (even@ enc)
+   (implies (regular@ enc)
             (equal (round-Newmann-approx (approx@ enc) #fx1p-64)
                    (round-Newmann (* (alpha@ enc) (cb@ enc)))))
   :use (:instance round-Newmann-approx-lemma
@@ -1202,7 +1202,7 @@
   :prep-lemmas
   ((acl2::with-arith5-nonlinear-help
     (defruled lemma0
-     (implies (even@ enc)
+     (implies (regular@ enc)
               (and (< (* (1- (ceilPow5d (- (k@ enc))))
                          (expt 2 (- (ord2alpha@ enc) 126)))
                       (alpha@ enc))
@@ -1224,7 +1224,7 @@
         :use (:instance expe-shift (b 2))))))
    (acl2::with-arith5-nonlinear-help
     (defrule lemma1
-     (implies (even@ enc)
+     (implies (regular@ enc)
               (and (<= (* (alpha@ enc) (cb@ enc)) (approx@ enc))
                    (< (approx@ enc) (+ #fx1p-64 (* (alpha@ enc) (cb@ enc))))
                    ))
@@ -1254,7 +1254,7 @@
 
 (acl2::with-arith5-help
  (defrule vn@-as-round-Newmann
-   (implies (even@ enc)
+   (implies (regular@ enc)
             (equal (vn@ enc)
                    (round-Newmann (/ (v@ enc)
                                      (* 1/2 (expt (D) (k@ enc)))))))
@@ -1264,7 +1264,7 @@
 (acl2::with-arith5-nonlinear-help
  (defrule vn@-as-round-Newmann-corr
    (implies (and (integerp m)
-                 (even@ enc))
+                 (regular@ enc))
             (equal (signum (- (v@ enc) (* 1/2 m (expt (D) (k@ enc)))))
                    (signum (- (vn@ enc) (* 2 m)))))
    :use (:instance signum-round-Newmann
