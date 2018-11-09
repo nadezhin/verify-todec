@@ -1,5 +1,5 @@
 (in-package "RTL")
-(include-book "section3")
+(include-book "section4")
 (include-book "alpha-separated")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))

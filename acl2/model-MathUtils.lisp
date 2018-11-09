@@ -2,7 +2,7 @@
 ;;
 (in-package "RTL")
 (include-book "model-support")
-(include-book "section3")
+(include-book "section4")
 
 (local (acl2::allow-arith5-help))
 (local (include-book "misc/enumerate" :dir :system))
