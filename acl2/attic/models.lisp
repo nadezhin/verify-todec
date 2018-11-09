@@ -1,7 +1,7 @@
 ;; ACL2 models of some Java methods in Rafaello Guilietti's code contribution
 ;;
 (in-package "RTL")
-(include-book "model-support")
+(include-book "../model-support")
 
 (local (acl2::allow-arith5-help))
 

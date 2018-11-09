@@ -1,5 +1,5 @@
 (in-package "RTL")
-(include-book "../section3")
+(include-book "section3")
 
 (local (include-book "rtl/rel11/support/basic" :dir :system))
 (local (acl2::allow-arith5-help))
