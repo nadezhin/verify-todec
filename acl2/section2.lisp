@@ -61,7 +61,7 @@
   ((d integerp)
    (i integerp))
   :returns (value rationalp :rule-classes :type-prescription)
-  (* (ifix d) (expt 2 i))
+  (* (ifix d) (expt (D) i))
   ///
   (fty::deffixequiv D-value)
   (defrule D-value-minis
@@ -206,7 +206,7 @@
     (1+ (expe x (D))))
   ///
   (fty::deffixequiv ordD))
-
+#|
 (acl2::with-arith5-help
  (defrule result-1-1
    (implies (and (real/rationalp x)
@@ -303,3 +303,4 @@
         (:instance result-1-1
                    (m (expt (D) (expe (fl x) (D))))
                    (n (expt (D) (1+ (expe (fl x) (D)))))))))
+|#

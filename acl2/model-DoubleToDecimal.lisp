@@ -641,12 +641,14 @@
          (<= (k@ enc) (- *MathUtils.MIN_EXP*)))
     :rule-classes :linear
     :enable (wid-Rv<=max-ulp-when-finite-positive-binary
-             wid-Rv>=MIN_VALUE k@-as-wid-Rv dp)
+             wid-Rv>=MIN_VALUE k@-as-wid-Rv ordD (D) dp)
     :disable k@
-    :use ((:instance result-1-4
+    :use ((:instance expe-monotone
+                     (b (D))
                      (x (MIN_VALUE (dp)))
                      (y (wid-Rv (v@ enc) (dp))))
-          (:instance result-1-4
+          (:instance expe-monotone
+                     (b (D))
                      (x (wid-Rv (v@ enc) (dp)))
                      (y (expt 2 (Qmax (dp)))))
           return-type-of-v@)))
@@ -665,18 +667,21 @@
     (defrule alpha@-linear
       (and (<= 2/3 (alpha@ enc))
            (< (alpha@ enc) (D)))
-      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@)
-      :use (:instance result-1-3
-                      (x (wid-Rv (v@ enc) (dp)))
-                      (k (ordD (wid-Rv (v@ enc) (dp)))))))
+      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@ ordD)
+      :use ((:instance expe-lower-bound
+                       (b (D))
+                       (x (wid-Rv (v@ enc) (dp))))
+            (:instance expe-upper-bound
+                       (b (D))
+                       (x (wid-Rv (v@ enc) (dp)))))))
    (acl2::with-arith5-nonlinear-help
     (defrule alpha@-linear-when-regular
       (implies (regular@ enc)
                (<= 1 (alpha@ enc)))
-      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@)
-      :use (:instance result-1-3
-                      (x (wid-Rv (v@ enc) (dp)))
-                      (k (ordD (wid-Rv (v@ enc) (dp)))))))))
+      :enable (k@-as-wid-Rv wid-Rv-as-regular@ qb@ ordD)
+      :use (:instance expe-lower-bound
+                      (b (D))
+                      (x (wid-Rv (v@ enc) (dp))))))))
 
 (define ord2alpha@
    ((enc acl2::ubyte64p))
