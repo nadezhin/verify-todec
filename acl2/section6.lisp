@@ -354,7 +354,7 @@
                      (< (- x D^i) x?)
                      (< x? (+ x D^i))
                      (not (= x? x)))
-                (< (largest-i d? i?) i)))
+                (<= (largest-i d? i?) (- i 1))))
       :cases ((not (integerp (* (D-value d? i?) (expt (D) (- i)))))
               (<= d (1- (* (D-value d? i?) (expt (D) (- i)))))
               (=  d     (* (D-value d? i?) (expt (D) (- i))))
@@ -379,9 +379,8 @@
                    (integerp i)
                    (real/rationalp x?)
                    (< (- x D^i) x?)
-                   (< x? (+ x D^i))
-                   (not (= x? x)))
-              (<= (1- (expe x (D))) (expe x? (D)))))
+                   (< x? (+ x D^i)))
+              (>= (expe x? (D)) (- (expe x (D)) 1))))
     :enable D-value
     :use ((:instance expe-monotone
                      (b (D))
@@ -400,7 +399,7 @@
     (D^i (expt (D) (ifix i))))
    (implies (and (< (- x D^i) x?)
                  (< x? (+ x D^i)))
-   (<= (D-len d i) (D-len d? i?))))
+   (>= (D-len d? i?) (D-len d i))))
   :cases ((< (abs (ifix d)) 2)
           (= (D-value d i) (D-value d? i?)))
   :hints
