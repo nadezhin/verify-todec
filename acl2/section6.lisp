@@ -14,15 +14,19 @@
 ; Definition 3
 
 (define D_i-p
-  ((x real/rationalp)
+  (x
    (i integerp))
   :returns (belongs booleanp :rule-classes ())
   (acl2::b*
-   ((x (realfix x))
-    (i (ifix i)))
-   (integerp (* x (expt (D) (- i)))))
+   ((i (ifix i)))
+   (and (real/rationalp x)
+        (integerp (* x (expt (D) (- i))))))
   ///
-  (fty::deffixequiv D_i-p))
+  (fty::deffixequiv D_i-p)
+  (defrule D_i-p-fwd
+    (implies (D_i-p x i)
+             (rationalp x))
+    :rule-classes :forward-chaining))
 
 (acl2::with-arith5-nonlinear++-help
  (defruled D_{i+1}
@@ -88,7 +92,6 @@
  (defruled result-2-u
   (implies (and (D_i-p x i)
                 (<= x (pos-rational-fix v))
-                (real/rationalp x)
                 (not (= x (u_i v i))))
            (< x (u_i v i)))
   :enable (D_i-p u_i t_i)
@@ -100,7 +103,6 @@
  (defruled result-2-w
   (implies (and (D_i-p x i)
                 (< (pos-rational-fix v) x)
-                (real/rationalp x)
                 (not (= x (w_i v i))))
            (< (w_i v i) x))
   :enable (D_i-p w_i)

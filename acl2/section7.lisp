@@ -139,7 +139,6 @@
            (or (in-tau-intervalp (u_i v i) (Rv v f))
                (in-tau-intervalp (w_i v i) (Rv v f))))
   :rule-classes ()
-  :do-not-induct t
   :use (result-5-subcase<
         (:instance result-5-subcase=
                    (i (ifix i)))))
