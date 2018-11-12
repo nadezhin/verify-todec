@@ -137,3 +137,18 @@
    :enable (wid-Rv Rv))
 
 (in-theory (disable tau-intervalp in-tau-intervalp tau-interval-lo tau-interval-hi))
+
+(defrule result-1-necc
+  (implies (and (in-tau-intervalp x (Rv v f))
+                (rationalp x))
+           (and (<= (vl v f) x)
+                (<= x (vr v f))))
+  :rule-classes ()
+  :enable in-tau-intervalp-Rv)
+
+(defruled result-1-suff
+  (implies (and (< (vl v f) x)
+                (< x (vr v f))
+                (rationalp x))
+           (in-tau-intervalp x (Rv v f)))
+  :enable in-tau-intervalp-Rv)
