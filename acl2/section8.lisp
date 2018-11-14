@@ -73,4 +73,22 @@
           (<= (* x (expt (D) (- (k v f)))) (s_i v (k v f)))
           (>= (* x (expt (D) (- (k v f)))) (t_i v (k v f))))))
 
-
+(define schubfach
+  ((v pos-rationalp)
+   (f formatp))
+  :returns (d rationalp)
+  (acl2::b*
+   ((Rv (Rv v f))
+    (k (k v f))
+    ((when (in-tau-intervalp (u_i v (+ k 1)) Rv)) (u_i v (+ k 1)))
+    ((when (in-tau-intervalp (w_i v (+ k 1)) Rv)) (w_i v (+ k 1)))
+    (u_k (u_i v k))
+    (w_k (w_i v k))
+    ((when (not (in-tau-intervalp w_k Rv))) u_k)
+    ((when (not (in-tau-intervalp u_k Rv))) w_k)
+    (v (pos-rational-fix v))
+    ((when (< v (/ (+ u_k w_k) 2))) u_k)
+    ((when (> v (/ (+ u_k w_k) 2))) w_k))
+   (if (D-even (s_i v k)) u_k w_k))
+  ///
+  (fty::deffixequiv schubfach))
