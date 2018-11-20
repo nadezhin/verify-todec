@@ -308,12 +308,61 @@
                                         (n (1- (nfix n2)))))))))
 
 (acl2::with-arith5-help
+ (define enum-spn
+   ((p posp)
+    (qmin integerp)
+    (b radixp))
+   :returns (spn pos-rationalp :rule-classes ())
+   (* (enum-drange p b)
+      (expt (radix-fix b) (ifix qmin)))
+   ///
+   (fty::deffixequiv enum-spn)
+   (defruled enum-spn-as-expt
+     (equal (enum-spn p qmin b)
+            (expt (radix-fix b) (+ -1 (acl2::pos-fix p) (ifix qmin))))
+     :enable enum-drange)
+   (defruled enum-v-denormal-linear
+     (implies (< (nfix n) (enum-drange p b))
+              (< (enum-v n p qmin b) (enum-spn p qmin b)))
+     :rule-classes :linear
+     :enable enum-v-when-denormal)
+   (defruled enum-v-enum-drange
+     (equal (enum-v (enum-drange p b) p qmin b)
+            (enum-spn p qmin b))
+     :enable enum-v)
+   (defruled enum-v-normal-linear
+     (implies (<= (enum-drange p b) (nfix n))
+              (<= (enum-spn p qmin b) (enum-v n p qmin b)))
+     :rule-classes :linear
+     :enable enum-v-enum-drange
+     :use (:instance enum-v-monotone
+                     (n1 (enum-drange p b))
+                     (n2 n)))))
+
+(define enum-tag
+  ((c real/rationalp))
+  :returns (tag natp :rule-classes ())
+  (acl2::b*
+   ((c (realfix c))
+    (fr (mod c 1)))
+   (cond ((= fr 0) 0)
+         ((< fr 1/2) 1)
+         ((= fr 1/2) 2)
+         (t 3)))
+  ///
+  (fty::deffixequiv enum-tag)
+  (defrule enum-tag-linear
+    (and (<= 0 (enum-tag x))
+         (<= (enum-tag x) 3))
+    :rule-classes :linear))
+
+(acl2::with-arith5-help
  (define enum-index
    ((x real/rationalp)
     (p posp)
     (qmin integerp)
     (b radixp))
-   :returns (index natp :rule-classes () :hints (("goal" :use guard-lemma)))
+   :returns (index natp :rule-classes () :hints (("goal" :use ret-lemma)))
    (acl2::b*
     (((unless (and (real/rationalp x) (< 0 x))) 0)
      (p (acl2::pos-fix p))
@@ -322,20 +371,13 @@
      (expq (expq x p b))
      (q (max qmin expq))
      (c (* x (expt b (- q))))
-     (ci (fl c))
-     (cf (- c ci))
-     (n (if (< expq qmin)
-            ci
-          (+ ci (* (- expq qmin) (enum-nrange p b))))))
-    (+ (* 4 n)
-       (cond ((= cf 0) 0)
-             ((< cf 1/2) 1)
-             ((= cf 1/2) 2)
-             (t 3))))
+     (n (+ (* (- q qmin) (enum-nrange p b))
+           (fl c))))
+    (+ (* 4 n) (enum-tag c)))
    :prepwork
    ((local
      (acl2::with-arith5-nonlinear-help
-      (defruled guard-lemma
+      (defruled ret-lemma
         (acl2::b*
          ((b (radix-fix b))
           (qmin (ifix qmin))
@@ -343,19 +385,56 @@
           (expq (expq x p b))
           (q (max qmin expq))
           (c (* x (expt b (- q))))
-          (ci (fl c))
-          (n (if (< expq qmin)
-                 ci
-               (+ ci (* (- expq qmin) (enum-nrange p b))))))
-         (implies
-          (and (rationalp x)
-               (< 0 x)
-               (radixp b)
-               (<= qmin expq))
-          (<= 0 n)))))))
+          (n (+ (* (- q qmin) (enum-nrange p b))
+                (fl c))))
+         (natp (if (and (rationalp x) (< 0 x))
+                   (+ (* 4 n) (enum-tag c))
+                 0)))
+        :prep-lemmas
+        ((defrule tag-lemma-1
+           (implies (<= 0 a)
+                    (<= 0 (+ (enum-tag c) a))))
+         (defrule tag-lemma-2
+           (implies (and (<= a b)
+                         (<= 0 d))
+                    (<= a (+ b (enum-tag c) d)))
+        ))))))
    ///
-   (fty::deffixequiv enum-index)))
-
+   (fty::deffixequiv enum-index)
+   (defruled enum-index-denormal
+     (implies (and (<= 0 (realfix x))
+                   (< (realfix x) (enum-spn p qmin b)))
+              (equal (enum-index x p qmin b)
+                     (acl2::b*
+                      ((c (* (realfix x)
+                             (expt (radix-fix b) (- (ifix qmin))))))
+                      (+ (* 4 (fl c)) (enum-tag c)))))
+     :enable enum-spn-as-expt
+     :use (:instance expq<=
+                     (x (realfix x))
+                     (p (acl2::pos-fix p))
+                     (b (radix-fix b))
+                     (n (1- (ifix qmin)))))
+   (defruled enum-index-normal
+     (implies (<= (enum-spn p qmin b) (realfix x))
+              (equal (enum-index x p qmin b)
+                     (acl2::b*
+                      ((nrange (enum-nrange p b))
+                       (p (acl2::pos-fix p))
+                       (qmin (ifix qmin))
+                       (b (radix-fix b))
+                       (x (realfix x))
+                       (expq (expq x p b))
+                       (sigc (sigc x p b))
+                       (n (+ (* (- expq qmin) nrange) (fl sigc))))
+                      (+ (* 4 n) (enum-tag sigc)))))
+     :enable (enum-spn-as-expt sigc sigm expq)
+     :use (:instance expq>=
+                     (x (realfix x))
+                     (p (acl2::pos-fix p))
+                     (b (radix-fix b))
+                     (n (ifix qmin))))))
+#|
 (defruled enum-index-enum-v{n}
   (acl2::b*
    ((v{n} (enum-v n p qmin b)))
@@ -383,7 +462,7 @@
                    (integerp qmin)
                    (radixp b))
               (equal (enum-index (enum-v n p qmin b) p qmin b) (* 4 n)))
-     :enable enum-index
+     :enable (enum-index enum-tag)
      :cases ((= n 0)
              (<= (enum-drange p b) n))
      :hints
@@ -397,151 +476,199 @@
       ("subgoal 1.3" :in-theory (enable enum-v lemma0))
       ("subgoal 1.2" :in-theory (enable expq-enum-v-when-normal))
       ("subgoal 1.1" :in-theory (enable sigc-enum-v-when-normal)))))))
-
-#|
-   (defrule enum-v-n=0
-     (equal (enum-v 0 f) 0)
-     :enable enum-c)
-   (defruled finite-positive-binary-enum-v
-     (implies (and (formatp f)
-                   (posp n)
-                   (< n (* (2^{P-1} f) (- (* 2 (2^{W-1} f)) 1))))
-              (finite-positive-binary-p (enum-v n f) f))
-     :enable enum-q-upper-bound
-     :cases ((< (nfix n) (2^{P-1} f)))
-     :use (:instance finite-positive-binary-suff
-                     (c (enum-c n f))
-                     (q (enum-q n f)))
-     :hints
-     (("subgoal 1" :cases ((not (= (enum-q n f) (Qmin f)))
-                           (not (>= (enum-c n f) 1))))
-      ("subgoal 1.2" :in-theory (enable enum-q fl))))
-   (defrule q-enum-v-as-enum-q-enum-c
-     (implies (posp n)
-              (and (equal (q (enum-v n f) f)
-                          (enum-q n f))
-                   (equal (c (enum-v n f) f)
-                          (enum-c n f))))
-     :use (:instance unique-c*2^q
-                     (c (enum-c n f))
-                     (q (enum-q n f)))
-     :cases ((< n (2^{P-1} f)))
-     :hints
-     (("subgoal 1" :cases ((not (= (enum-q n f) (Qmin f)))
-                           (not (>= (enum-c n f) 1))))
-      ("subgoal 1.2" :in-theory (enable enum-q fl))))))
 |#
-#|
-(define enum-q
-  ((n natp)
-   (f formatp))
-  :returns (q integerp :rule-classes ())
-  (acl2::b*
-   ((n (nfix n))
-    (i (fl (/ n (2^{P-1} f)))))
-   (if (= i 0)
-       (Qmin f)
-     (+ -1 i (Qmin f))))
-  ///
-  (fty::deffixequiv enum-q)
-  (defrule enum-q-lower-bound
-    (>= (enum-q n f) (Qmin f))
-    :rule-classes :linear)
-  (acl2::with-arith5-nonlinear-help
-   (defruled enum-q-upper-bound
-     (implies (< (nfix n) (* (2^{P-1} f) (- (* 2 (2^{W-1} f)) 1)))
-              (<= (enum-q n f) (Qmax f)))
-     :rule-classes :linear
-     :enable (Qmax-as-Qmin fl)))
-  (acl2::with-arith5-nonlinear-help
-   (defrule enum-q-monotone
-     (implies (<= (nfix n1) (nfix n2))
-              (<= (enum-q n1 f) (enum-q n2 f)))
-     :rule-classes ())))
-|#
-#|
-(define enum-c
-  ((n natp)
-   (f formatp))
-  :returns (c natp :rule-classes :type-prescription)
-  (acl2::b*
-   ((n (nfix n))
-    (i (fl (/ n (2^{P-1} f)))))
-   (if (= i 0)
-       n
-     (- n (* (2^{P-1} f) (- i 1)))))
-  ///
-  (fty::deffixequiv enum-c)
-  (defrule enum-c-type-when-n>=1
-    (implies (posp n)
-             (posp (enum-c n f)))
-    :rule-classes :type-prescription)
-  (acl2::with-arith5-nonlinear-help
-   (defrule enum-c-upper-bound
-     (< (enum-c n f) (* 2 (2^{P-1} f)))
-     :rule-classes :linear))
-  (acl2::with-arith5-nonlinear-help
-   (defrule enum-c-upper-bound-subormal
-     (implies (< (nfix n) (2^{P-1} f))
-              (< (enum-c n f) (2^{P-1} f)))
-     :rule-classes :linear))
-  (defrule enum-c-lower-bound-normal
-    (implies (<= (2^{P-1} f) (nfix n))
-             (<= (2^{P-1} f) (enum-c n f)))
-    :rule-classes :linear))
-
 (acl2::with-arith5-help
- (define enum-v
-   ((n natp)
-    (f formatp))
-   :returns (v (and (rationalp v) (<= 0 v)) :rule-classes ())
-   (* (enum-c n f) (expt 2 (enum-q n f)))
-   ///
-   (fty::deffixequiv enum-v :hints (("goal" :in-theory (disable nfix))))
-   (acl2::with-arith5-nonlinear++-help
-    (defrule enum-v-monotone
-      (implies (< (nfix n1) (nfix n2))
-               (< (enum-v n1 f) (enum-v n2 f)))
-      :cases ((<= (enum-q n1 f) (1- (enum-q n2 f)))
-              (= (enum-q n1 f) (enum-q n2 f)))
-      :disable nfix
-      :hints
-      (("subgoal 3" :use enum-q-monotone)
-       ("subgoal 2" :cases ((<= (2^{P-1} f) (nfix n2))))
-       ("subgoal 2.2" :expand (enum-q n2 f))
-       ("subgoal 1" :in-theory (enable enum-q enum-c)))))
-   (defrule enum-v-n=0
-     (equal (enum-v 0 f) 0)
-     :enable enum-c)
-   (defruled finite-positive-binary-enum-v
-     (implies (and (formatp f)
-                   (posp n)
-                   (< n (* (2^{P-1} f) (- (* 2 (2^{W-1} f)) 1))))
-              (finite-positive-binary-p (enum-v n f) f))
-     :enable enum-q-upper-bound
-     :cases ((< (nfix n) (2^{P-1} f)))
-     :use (:instance finite-positive-binary-suff
-                     (c (enum-c n f))
-                     (q (enum-q n f)))
-     :hints
-     (("subgoal 1" :cases ((not (= (enum-q n f) (Qmin f)))
-                           (not (>= (enum-c n f) 1))))
-      ("subgoal 1.2" :in-theory (enable enum-q fl))))
-   (defrule q-enum-v-as-enum-q-enum-c
-     (implies (posp n)
-              (and (equal (q (enum-v n f) f)
-                          (enum-q n f))
-                   (equal (c (enum-v n f) f)
-                          (enum-c n f))))
-     :use (:instance unique-c*2^q
-                     (c (enum-c n f))
-                     (q (enum-q n f)))
-     :cases ((< n (2^{P-1} f)))
-     :hints
-     (("subgoal 1" :cases ((not (= (enum-q n f) (Qmin f)))
-                           (not (>= (enum-c n f) 1))))
-      ("subgoal 1.2" :in-theory (enable enum-q fl))))))
-|#
+ (defruled enum-index-as-enum-v-lemma
+  (acl2::b*
+   ((c{n} (enum-c n p b))
+    (q{n} (enum-q n p qmin b)))
+   (implies (and (real/rationalp c)
+                 (natp n)
+                 (posp p)
+                 (integerp qmin)
+                 (radixp b)
+                 (<= c{n} c)
+                 (< c (1+ c{n})))
+            (equal (enum-index (* c (expt b q{n})) p qmin b)
+                   (+ (* 4 (- q{n} qmin) (enum-nrange p b))
+                      (* 4 c{n})
+                      (enum-tag c)))))
+  :enable (enum-index-denormal
+           enum-index-normal
+           sigc-shift sigc-self)
+  :cases ((<= (enum-drange p b) n))
+  :prep-lemmas
+  ((defrule lemma1
+     (implies (and (< c (enum-drange p b))
+                   (radixp b))
+              (< (* c (expt b qmin)) (enum-spn p qmin b)))
+     :enable enum-spn)
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma2
+      (implies (and (<= (enum-drange p b) c)
+                    (<= qmin q)
+                    (integerp q)
+                    (integerp qmin)
+                    (radixp b))
+               (<= (enum-spn p qmin b) (* c (expt b q))))
+      :enable enum-spn))
+   (defrule lemma3
+     (implies (and (<= (enum-c n p b) c)
+                   (< c (1+ (enum-c n p b)))
+                   (<= (enum-drange p b) n)
+                   (natp n)
+                   (real/rationalp c)
+                   (posp p)
+                   (radixp b))
+              (equal (sigc c p b) c))
+     :enable (sigc-self enum-drange enum-nrange))
+   (defrule lemma4
+     (implies (and (<= (enum-c n p b) c)
+                   (< c (1+ (enum-c n p b)))
+                   (<= (enum-drange p b) n)
+                   (natp n)
+                   (real/rationalp c)
+                   (posp p)
+                   (radixp b))
+              (equal (expq c p b) 0))
+     :enable (enum-drange enum-nrange)
+     :use (:instance expq-unique (x c) (n 0)))
+   (defrule expq-shift-alt
+     (implies (and (real/rationalp x)
+                   (not (= x 0))
+                   (integerp n)
+                   (integerp p)
+                   (radixp b))
+              (equal (expq (* x (expt b n)) p b)
+                     (+ n (expq x p b))))
+     :use expq-shift))))
+ 
+(acl2::with-arith5-help
+ (defruled enum-index-as-enum-v-try
+  (acl2::b*
+   ((v{n} (enum-v n p qmin b))
+    (q{n} (enum-q n p qmin b))
+    (c{n} (enum-c n p b))
+    (ulp (expt (radix-fix b) (enum-q n p qmin b))))
+   (implies (and (natp n)
+                 (posp p)
+                 (integerp qmin)
+                 (radixp b)
+                 (real/rationalp x)
+                 (<= v{n} x)
+                 (< x (+ v{n} ulp)))
+            (equal (enum-index x p qmin b)
+                   (+ (* 4 (- q{n} qmin) (enum-nrange p b))
+                      (* 4 c{n})
+                      (enum-tag (* x (expt b (- q{n}))))))))
+  :enable (enum-index-denormal
+           enum-index-normal
+           sigc-shift sigc-self
+           enum-v
+           )
+  :cases ((<= (enum-drange p b) n))
+  :prep-lemmas
+  ((defruled lemma1
+     (implies (and (< c (enum-drange p b))
+                   (radixp b))
+              (< (* c (expt b qmin)) (enum-spn p qmin b)))
+     :enable enum-spn)
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma1a
+      (implies (and (< x (+ (expt b qmin) (* n (expt b qmin))))
+                    (< n (enum-drange p b))
+                    (natp n)
+                    (radixp b))
+               (< x (enum-spn p qmin b)))
+      :use (:instance lemma1 (c (* x (expt b (- qmin)))))))
+   (acl2::with-arith5-nonlinear-help
+    (defruled lemma2
+      (implies (and (<= (enum-drange p b) c)
+                    (<= qmin q)
+                    (integerp q)
+                    (integerp qmin)
+                    (radixp b))
+               (<= (enum-spn p qmin b) (* c (expt b q))))
+      :enable enum-spn))
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma2a
+      (implies (and (<= (* c (expt b q)) x)
+                    (<= (enum-drange p b) c)
+                    (<= qmin q)
+                    (posp p)
+                    (integerp q)
+                    (integerp qmin)
+                    (radixp b))
+               (<= (enum-spn p qmin b) x))
+      :use (:instance lemma2 (c (* x (expt b (- q)))))))
+   (defruled lemma3
+     (implies (and (<= (enum-c n p b) c)
+                   (< c (1+ (enum-c n p b)))
+                   (<= (enum-drange p b) n)
+                   (natp n)
+                   (real/rationalp c)
+                   (posp p)
+                   (radixp b))
+              (equal (sigc c p b) c))
+     :enable (sigc-self enum-drange enum-nrange))
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma3a
+      (implies (and (<= (* (enum-c n p b) (expt b q)) x)
+                    (< x (+ (expt b q) (* (enum-c n p b) (expt b q))))
+                    (<= (enum-drange p b) n)
+                    (natp n)
+                    (real/rationalp x)
+                    (integerp q)
+                    (posp p)
+                    (radixp b))
+               (equal (sigc x p b) (* x (expt b (- q)))))
+      :enable sigc-shift
+      :use (:instance lemma3 (c (* x (expt b (- q)))))))
+   (defruled lemma4
+     (implies (and (<= (enum-c n p b) c)
+                   (< c (1+ (enum-c n p b)))
+                   (<= (enum-drange p b) n)
+                   (natp n)
+                   (real/rationalp c)
+                   (posp p)
+                   (radixp b))
+              (equal (expq c p b) 0))
+     :enable (enum-drange enum-nrange)
+     :use (:instance expq-unique (x c) (n 0)))
+   (defrule expq-shift-alt
+     (implies (and (real/rationalp x)
+                   (not (= x 0))
+                   (integerp n)
+                   (integerp p)
+                   (radixp b))
+              (equal (expq (* x (expt b n)) p b)
+                     (+ n (expq x p b))))
+     :use expq-shift)
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma4a
+      (implies (and (<= (* (enum-c n p b) (expt b q)) x)
+                    (< x (+ (expt b q) (* (enum-c n p b) (expt b q))))
+                    (<= (enum-drange p b) n)
+                    (natp n)
+                    (real/rationalp x)
+                    (integerp q)
+                    (posp p)
+                    (radixp b))
+               (equal (expq x p b) q))
+      :enable expq-shift-alt
+      :use (:instance lemma4 (c (* x (expt b (- q)))))))
+   (acl2::with-arith5-nonlinear-help
+    (defrule lemma5
+      (implies (and (<= (* n (expt b q)) x)
+                    (< x (+ (expt b q) (* n (expt b q))))
+                    (real/rationalp x)
+                    (integerp q)
+                    (radixp b)
+                    (natp n))
+               (equal (fl (* x (expt b (- q)))) n))
+      :use (:instance fl-unique
+                      (x (* x (expt b (- q))))))))))
+
 (defund rne1 (sig)
   (let* ((z (fl sig))
          (f (- sig z)))
