@@ -34,6 +34,27 @@
     :define t)
   (in-theory (disable pos-rational-equiv)))
 
+(defrule radixp-compound-recognizer
+  (equal (radixp b)
+         (and (integerp b) (< 1 b)))
+  :rule-classes :compound-recognizer
+  :enable radixp)
+
+(define radix-fix
+  ((b radixp))
+  :returns (b-fixed radixp :rule-classes ())
+  (if (radixp b) b 2)
+  ///
+  (defrule radix-fix-when-radixp
+    (implies (radixp x)
+             (equal (radix-fix x) x)))
+  (fty::deffixtype radix
+    :pred radixp
+    :fix radix-fix
+    :equiv radix-equiv
+    :define t)
+  (in-theory (disable radix-equiv)))
+
 (define format-fix
   ((f formatp))
   :returns (f formatp
