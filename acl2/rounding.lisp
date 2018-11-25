@@ -6,6 +6,11 @@
 
 ; enumerate nonnegative values of format f
 
+(defruled expo-as-expe
+  (equal (expo x)
+         (expe x 2))
+  :enable (expo expe))
+
 (acl2::with-arith5-help
  (define enum-drange
    ((p posp)
@@ -47,37 +52,36 @@
         (let ((x (enumerate (1+ n) p b)))
           (- x (max 1 (expt b (expq x p b))))))))
    ///
-   (fty::deffixequiv enumerate)))
+   (fty::deffixequiv enumerate)
+   (defrule enumerate-0
+     (equal (enumerate 0 p b) 0))
+   (defruled enumerate-minus
+     (equal (enumerate (- n) p b)
+            (- (enumerate n p b)))
+     :disable expq-minus
+     :induct (enumerate n p b)
+     :hints
+     (("subgoal *1/3" :use (:instance expq-minus
+                                      (x (enumerate (1+ n) p b))
+                                      (p (acl2::pos-fix p))
+                                      (b (radix-fix b))))
+      ("subgoal *1/2" :use (:instance expq-minus
+                                      (x (enumerate (1- n) p b))
+                                      (p (acl2::pos-fix p))
+                                      (b (radix-fix b))))))
+   (defruled signum-enumerate
+     (equal (signum (enumerate n p b))
+            (signum (ifix n)))
+     :enable signum)))
 
-(defruled enumerate-minus
-  (equal (enumerate (- n) p b)
-         (- (enumerate n p b)))
-  :enable enumerate
-  :disable expq-minus
-  :induct (enumerate n p b)
-  :hints
-  (("subgoal *1/3" :use (:instance expq-minus
-                                   (x (enumerate (1+ n) p b))
-                                   (p (acl2::pos-fix p))
-                                   (b (radix-fix b))))
-   ("subgoal *1/2" :use (:instance expq-minus
-                                   (x (enumerate (1- n) p b))
-                                   (p (acl2::pos-fix p))
-                                   (b (radix-fix b))))))
-
-(defruled signum-enumerate
-  (equal (signum (enumerate n p b))
-         (signum (ifix n)))
-  :enable (enumerate signum))
-
-(defruled enumerate-pos-type
+(defrule enumerate-pos-type
   (implies (posp n)
            (posp (enumerate n p b)))
   :rule-classes :type-prescription
   :enable signum
   :use signum-enumerate)
 
-(defruled enumerate-neg-type
+(defrule enumerate-neg-type
   (implies (and (integerp n)
                 (< n 0))
            (and (integerp (enumerate n p b))
@@ -186,10 +190,10 @@
   (implies (and (posp p)
                 (radixp b))
            (exactrp (enumerate n p b) p b))
+  :enable enumerate-minus
   :cases ((zip n))
   :hints
-  (("subgoal 2" :in-theory (enable enumerate-minus)
-    :use (:instance lemma (n (- n))))
+  (("subgoal 2" :use (:instance lemma (n (- n))))
    ("subgoal 1" :in-theory (enable enumerate)))
   :prep-lemmas
   ((acl2::with-arith5-nonlinear-help
@@ -221,8 +225,7 @@
                   (fpr- (enumerate n p b)
                         (acl2::pos-fix p)
                         (radix-fix b))))
-  :enable (enumerate-normal-as-fpr+
-           enumerate-pos-type)
+  :enable enumerate-normal-as-fpr+
   :disable (fpr+ fpr- fpr-+)
   :cases ((posp (1- n)))
   :use ((:instance fpr-+
@@ -265,8 +268,7 @@
                         (if (= (sigc v p b) (+ -1 drange nrange))
                             drange
                           (1+ (sigc v p b)))))))
-   :enable (enumerate-normal-as-fpr+
-            enumerate-pos-type sigc-as-expq)
+   :enable (enumerate-normal-as-fpr+ sigc-as-expq)
    :cases ((= (expq (enumerate (1+ n) p b) p b)
               (expq (enumerate n p b) p b))
            (= (enumerate (1+ n) p b)
@@ -358,10 +360,7 @@
                        (if (< an drange)
                            n
                          (if (<= 0 n) v (- v))))))
-      :enable (enumerate-pos-type
-               enumerate-neg-type
-               enumerate-minus
-               sigc-as-expq)
+      :enable (enumerate-minus sigc-as-expq)
       :cases ((<= n (- (enum-drange p b)))
               (<= (enum-drange p b) n))
       :hints
@@ -374,9 +373,199 @@
           (implies (and (equal (+ n (* nrange expq)) (* v (expt b (- q))))
                         (real/rationalp v)
                         (radixp b))
-                   (equal (+ (* n (expt b q))
-                             (* nrange expq (expt b q))) v)))))))))
+                   (equal (+ (* n (expt b q)) (* nrange expq (expt b q)))
+                          v)))))))))
 
+(acl2::with-arith5-nonlinear-help
+ (defruled enumerate-explicit-corr
+   (acl2::b*
+    ((drange (enum-drange p b))
+     (nrange (enum-nrange p b))
+     (n (+ c (* q nrange))))
+    (implies (and (natp q)
+                  (integerp c)
+                  (<= drange c)
+                  (< c (+ drange nrange)))
+             (equal (enumerate n p b)
+                    (* c (expt (radix-fix b) q)))))
+   :use ((:instance enumerate-explicit
+                    (n (+ c (* q (enum-nrange p b)))))
+         (:instance fl-unique
+                    (x (/ (- (+ c (* q (enum-nrange p b)))
+                             (enum-drange p b))
+                          (enum-nrange p b)))
+                    (n q)))))
+
+(acl2::with-arith5-help
+ (defrule expq-enumerate-upper-bound
+   (implies (and (< (abs n) (+ (enum-drange p b)
+                               (* q (enum-nrange p b))))
+                 (not (zip n))
+                 (natp q)
+                 (posp p)
+                 (radixp b))
+            (< (expq (enumerate n p b) p b) q))
+   :enable (enumerate-minus enum-drange)
+   :use ((:instance expq<=
+                    (x (enumerate (abs n) p b))
+                    (n (1- q)))
+         (:instance enumerate-monotone
+                    (n1 (abs n))
+                    (n2 (+ (enum-drange p b)
+                           (* q (enum-nrange p b)))))
+         (:instance enumerate-explicit-corr
+                    (c (enum-drange p b))))))
+
+(define enumerate-f
+  ((n integerp)
+   (f formatp))
+  :returns (v rationalp :rule-classes ())
+  (acl2::b*
+   ((f (format-fix f)))
+   (* (spd f) (enumerate n (prec f) 2)))
+  ///
+  (fty::deffixequiv enumerate-f :hints (("goal" :in-theory (disable ifix))))
+  (defrule enumerate-f-0
+    (equal (enumerate-f 0 f) 0))
+  (acl2::with-arith5-help
+   (defruled enumerate-f-minus
+     (equal (enumerate-f (- n) f)
+            (- (enumerate-f (fix n) f)))
+     :enable enumerate-minus))
+  (defruled signum-enumerate-f
+    (equal (signum (enumerate-f n f))
+           (signum (ifix n)))
+    :enable signum
+    :use (:instance signum-enumerate
+                    (p (prec (format-fix f)))
+                    (b 2)))
+  (defrule enumerate-f-pos-type
+    (implies (posp n)
+             (pos-rationalp (enumerate-f n f)))
+    :rule-classes :type-prescription)
+  (acl2::with-arith5-help
+  (defrule enumerate-f-neg-type
+    (implies (and (integerp n)
+                  (< n 0))
+             (and (rationalp (enumerate-f n f))
+                  (< (enumerate-f n f) 0)))
+    :rule-classes :type-prescription)
+  (defruled expo-enumerate-f
+    (equal (expo (enumerate-f n f))
+           (if (zip n)
+               0
+             (let ((f (format-fix f)))
+               (- (expq (enumerate n (prec f) 2) (prec f) 2)
+                  (1- (bias f))))))
+    :enable (spd expq expo-as-expe)
+    :use (:instance expe-shift
+                    (b 2)
+                    (x (enumerate n (prec (format-fix f)) 2))
+                    (n (+ 2 (- (bias (format-fix f))) (- (prec (format-fix f))))))
+    :cases ((zip n) (posp n))
+    :hints (("subgoal 2" :in-theory (enable enumerate)))
+    :prep-lemmas
+    ((defrule lemma
+       (implies (formatp f)
+                (integerp (+ (bias f) (prec f)))))))))
+
+
+(acl2::with-arith5-nonlinear-help
+ (rule
+  (implies (and (not (zip n))
+                (< (abs n) (expt 2 (1- (prec f))))
+                (formatp f))
+           (drepp (enumerate-f n f) f))
+  :enable (enumerate-f enumerate-when-abs{n}<=drange+nrange
+           drepp spd exactp sig enum-drange)
+  :use ((:instance expo>=
+                   (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+                   (n (expo (spd f))))
+        (:instance expo<=
+                   (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+                   (n (- (bias f)))))))
+#|
+(acl2::with-arith5-nonlinear-help
+ (rule
+  (implies (and (<= (expt 2 (1- (prec f))) (abs n))
+                (< (abs n) (* (1- (expt 2 (expw f)))
+                              (expt 2 (1- (prec f)))))
+                (posp n)
+                (formatp f))
+           (nrepp (enumerate-f n f) f))
+  :enable (nrepp;enumerate-when-abs{n}<=drange+nrange
+;           enum-drange
+           enumerate-minus
+           ;spd
+           ;spn exactp sig
+           )
+  :cases
+  ((not (<= (- 1 (bias f))
+            (expo (enumerate-f n f))))
+   (not (<= (expo (enumerate-f n f))
+            (+ -2 (- (bias f)) (expt 2 (expw f)))))
+   (not (exactp (enumerate-f n f) (prec f))))
+  :prep-lemmas
+  ((defrule expo-spd
+     (implies (and (posp x)
+                   (formatp f))
+              (equal (expo (* (spd f) x))
+                     (+ 1 (expq x (prec f) 2) (- (bias f)))))
+     :enable (spd expq expo-as-expe)
+     :use (:instance expe-shift
+                     (b 2)
+                     (n (+ 2 (- (bias f)) (- (prec f)))))
+     )
+  )))
+  :hints
+  (("subgoal 3"
+    :in-theory (enable enumerate-when-abs{n}<=drange+nrange enum-drange)
+    :use
+    ((:instance expo>=
+                (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+                (n (- 1 (bias f))))
+     (:instance enumerate-monotone
+                (n1 (expt 2 (1- (prec f))))
+                (n2 (abs n))
+                (p (prec f))
+                (b 2))))
+   ("subgoal 2" :use (:instance expq-enumerate-upper-bound
+                                (q (
+   ("subgoal 2" :cases ((< (* (enumerate (abs n) (prec f) 2) (spd f))
+                           (expt 2 (+ -2 (- (bias f)) (expt 2 (expw f)))))))
+   ("subgoal 2.2" :cases ((not (= (enumerate
+                              (* (1- (expt 2 (expw f)))
+                                 (expt 2 (1- (prec f))))
+                              (prec f)
+                              2)
+                             (expt 2 (+ -2 (- (bias f))
+                                        (expt 2 (expw f)))))))
+
+    :use (:instance enumerate-monotone
+                    (n1 (abs n))
+                    (n2 (* (1- (expt 2 (expw f)))
+                           (expt 2 (1- (prec f)))))))
+   ("subgoal 2.1" :use
+    ((:instance expo<=
+                (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+                (n (+ -2 (- (bias f)) (expt 2 (expw f)))))
+     )
+    )))
+
+   )))))
+  :use ((:instance expo>=
+                   (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+                   (n (expo (spn f))))
+        (:instance enumerate-monotone
+                   (n1 (expt 2 (1- (prec f))))
+                   (n2 (abs n))
+                   (p (prec f))
+                   (b 2)))
+        ;(:instance expo<=
+         ;          (x (* (enumerate (abs n) (prec f) 2) (spd f)))
+         ;          (n (1- (expo (spn f)))))
+        )))
+|#
 (acl2::with-arith5-help
  (define enum-q
    ((n natp)
@@ -1057,11 +1246,6 @@
         (:instance expo<=
                    (x n)
                    (n (- (P f) 2))))))
-
-(defruled expo-as-expe
-  (equal (expo x)
-         (expe x 2))
-  :enable (expo expe))
 
 (acl2::with-arith5-help
  (defrule exactp-enum-v
