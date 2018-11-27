@@ -4,12 +4,23 @@
 (local (include-book "rtl/rel11/support/round" :dir :system))
 (local (acl2::allow-arith5-help))
 
+
 ; enumerate nonnegative values of format f
 
 (defruled expo-as-expe
   (equal (expo x)
          (expe x 2))
   :enable (expo expe))
+
+(acl2::with-arith5-help
+ (defruled sigc-as-expq
+   (implies (and (real/rationalp x)
+                 (not (= x 0))
+                 (integerp p)
+                 (radixp b))
+            (equal (sigc x p b)
+                   (* (abs x) (expt b (- (expq x p b))))))
+   :enable (sigc expq sigm)))
 
 (acl2::with-arith5-help
  (define enum-drange
@@ -239,16 +250,6 @@
                    (p (acl2::pos-fix p))
                    (b (radix-fix b)))))
 
-(acl2::with-arith5-help
- (defruled sigc-as-expq
-   (implies (and (real/rationalp x)
-                 (not (= x 0))
-                 (integerp p)
-                 (radixp b))
-            (equal (sigc x p b)
-                   (* (abs x) (expt b (- (expq x p b))))))
-   :enable (sigc expq sigm)))
-
 (acl2::with-arith5-nonlinear-help
  (defruled expq-sigc-enumerate-n+1
   (acl2::b*
@@ -450,6 +451,18 @@
              (and (rationalp (enumerate-f n f))
                   (< (enumerate-f n f) 0)))
     :rule-classes :type-prescription)
+  (defruled enumerate-f-monotone
+    (implies (< (ifix n1) (ifix n2))
+             (< (enumerate-f n1 f) (enumerate-f n2 f)))
+    :enable enumerate-monotone)
+  (defruled enumerate-f-when-abs{n}<=drange+nrange
+    (implies (<= (abs (ifix n)) (expt 2 (prec (format-fix f))))
+             (equal (enumerate-f n f)
+                    (* (spd (format-fix f)) (ifix n))))
+    :enable (enum-drange enum-nrange acl2::pos-fix)
+    :use (:instance enumerate-when-abs{n}<=drange+nrange
+                    (b 2)
+                    (p (prec (format-fix f)))));)
   (defruled expo-enumerate-f
     (equal (expo (enumerate-f n f))
            (if (zip n)
