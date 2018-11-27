@@ -1175,7 +1175,6 @@
          (<= x CbMax)
          (<= 0 err)
          (< err #fx1p-64)
-         (regular@ enc)
          (posp n))
     (equal (round-Newmann-approx (/ approx n) (/ #fx1p-64 n))
            (round-Newmann (/ alpha*x n)))))
@@ -1185,18 +1184,19 @@
   :prep-lemmas
   ((acl2::with-arith5-help
     (defrule lemma
-      (implies (regular@ enc)
-               (equal (alpha@ enc)
-                      (/ (expt 2 (q@ enc))
-                         (expt (D) (1- (ordD (expt 2 (q@ enc))))))))
+      (equal (alpha@ enc)
+             (if (regular@ enc)
+                 (/ (expt 2 (q@ enc))
+                    (expt (D) (1- (ordD (expt 2 (q@ enc))))))
+               (/ (* 1/2 (expt 2 (q@ enc)))
+                  (expt (D) (1- (ordD (* 3/4 (expt 2 (q@ enc)))))))))
       :enable (alpha@ k@-as-wid-Rv regular@-as-q-c@ wid-Rv-as-c-q q@-as-q c@-as-c
                       qb@)))))
 
 
 (defruledl round-Newmann-approx-lemma-cb
-   (implies (regular@ enc)
-            (equal (round-Newmann-approx (approx@ enc) #fx1p-64)
-                   (round-Newmann (* (alpha@ enc) (cb@ enc)))))
+  (equal (round-Newmann-approx (approx@ enc) #fx1p-64)
+         (round-Newmann (* (alpha@ enc) (cb@ enc))))
   :use (:instance round-Newmann-approx-lemma
                 (n 1)
                 (x (cb@ enc))
@@ -1207,16 +1207,15 @@
   :prep-lemmas
   ((acl2::with-arith5-nonlinear-help
     (defruled lemma0
-     (implies (regular@ enc)
-              (and (< (* (1- (ceilPow5d (- (k@ enc))))
-                         (expt 2 (- (ord2alpha@ enc) 126)))
-                      (alpha@ enc))
-                   (<= (alpha@ enc)
-                       (* (ceilPow5d (- (k@ enc)))
-                          (expt 2 (- (ord2alpha@ enc) 126))))))
+      (and (< (* (1- (ceilPow5d (- (k@ enc))))
+                 (expt 2 (- (ord2alpha@ enc) 126)))
+              (alpha@ enc))
+           (<= (alpha@ enc)
+               (* (ceilPow5d (- (k@ enc)))
+                  (expt 2 (- (ord2alpha@ enc) 126)))))
      :enable (ord2alpha@-as-alpha@
               ord2 ceilPow5d alpha@ qb@
-              expt-D-as-expt-D/2 sigc sigm                   )
+              expt-D-as-expt-D/2 sigc sigm)
      :use ((:instance cg-def
                       (x (sigc (expt (D/2) (- (k@ enc))) 126 2))))
      :prep-lemmas
@@ -1229,10 +1228,8 @@
         :use (:instance expe-shift (b 2))))))
    (acl2::with-arith5-nonlinear-help
     (defrule lemma1
-     (implies (regular@ enc)
-              (and (<= (* (alpha@ enc) (cb@ enc)) (approx@ enc))
-                   (< (approx@ enc) (+ #fx1p-64 (* (alpha@ enc) (cb@ enc))))
-                   ))
+      (and (<= (* (alpha@ enc) (cb@ enc)) (approx@ enc))
+           (< (approx@ enc) (+ #fx1p-64 (* (alpha@ enc) (cb@ enc)))))
      :rule-classes ((:linear :trigger-terms ((approx@ enc))))
      :enable (approx@ p@-as-cb@)
      :use (lemma0 lemma3)
@@ -1259,17 +1256,15 @@
 
 (acl2::with-arith5-help
  (defrule vn@-as-round-Newmann
-   (implies (regular@ enc)
-            (equal (vn@ enc)
-                   (round-Newmann (/ (v@ enc)
-                                     (* 1/2 (expt (D) (k@ enc)))))))
+   (equal (vn@ enc)
+          (round-Newmann (/ (v@ enc)
+                            (* 1/2 (expt (D) (k@ enc))))))
    :enable (vn@-as-round-Newmann-approx alpha@ qb@ cb@-as-v@)
    :use round-Newmann-approx-lemma-cb))
 
 (acl2::with-arith5-nonlinear-help
  (defrule vn@-as-round-Newmann-corr
-   (implies (and (integerp m)
-                 (regular@ enc))
+   (implies (integerp m)
             (equal (signum (- (v@ enc) (* 1/2 m (expt (D) (k@ enc)))))
                    (signum (- (vn@ enc) (* 2 m)))))
    :use (:instance signum-round-Newmann
