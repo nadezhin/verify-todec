@@ -60,7 +60,7 @@
   :enable ((D))
   :use (:instance acl2::enumerate (term (acl2::sbyte32-fix i)) (i 0) (j 17)))
 
-(defconst *MathUtils.ceilPow5d*
+(defconst *MathUtils.floorPow10p1d*
   (list
         #| -292 |# #ux7FBB_D8FE_5F5E_6E27 #ux497A_3A27_04EE_C3DF
         #| -291 |# #ux4FD5_679E_FB9B_04D8 #ux5DEC_6458_6315_3A6C
@@ -354,61 +354,61 @@
         #|   -3 |# #ux4189_374B_C6A7_EF9D #ux5916_872B_020C_49BB
         #|   -2 |# #ux51EB_851E_B851_EB85 #ux0F5C_28F5_C28F_5C29
         #|   -1 |# #ux6666_6666_6666_6666 #ux3333_3333_3333_3334
-        #|    0 |# #ux4000_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    1 |# #ux5000_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    2 |# #ux6400_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    3 |# #ux7D00_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    4 |# #ux4E20_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    5 |# #ux61A8_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    6 |# #ux7A12_0000_0000_0000 #ux0000_0000_0000_0000
-        #|    7 |# #ux4C4B_4000_0000_0000 #ux0000_0000_0000_0000
-        #|    8 |# #ux5F5E_1000_0000_0000 #ux0000_0000_0000_0000
-        #|    9 |# #ux7735_9400_0000_0000 #ux0000_0000_0000_0000
-        #|   10 |# #ux4A81_7C80_0000_0000 #ux0000_0000_0000_0000
-        #|   11 |# #ux5D21_DBA0_0000_0000 #ux0000_0000_0000_0000
-        #|   12 |# #ux746A_5288_0000_0000 #ux0000_0000_0000_0000
-        #|   13 |# #ux48C2_7395_0000_0000 #ux0000_0000_0000_0000
-        #|   14 |# #ux5AF3_107A_4000_0000 #ux0000_0000_0000_0000
-        #|   15 |# #ux71AF_D498_D000_0000 #ux0000_0000_0000_0000
-        #|   16 |# #ux470D_E4DF_8200_0000 #ux0000_0000_0000_0000
-        #|   17 |# #ux58D1_5E17_6280_0000 #ux0000_0000_0000_0000
-        #|   18 |# #ux6F05_B59D_3B20_0000 #ux0000_0000_0000_0000
-        #|   19 |# #ux4563_9182_44F4_0000 #ux0000_0000_0000_0000
-        #|   20 |# #ux56BC_75E2_D631_0000 #ux0000_0000_0000_0000
-        #|   21 |# #ux6C6B_935B_8BBD_4000 #ux0000_0000_0000_0000
-        #|   22 |# #ux43C3_3C19_3756_4800 #ux0000_0000_0000_0000
-        #|   23 |# #ux54B4_0B1F_852B_DA00 #ux0000_0000_0000_0000
-        #|   24 |# #ux69E1_0DE7_6676_D080 #ux0000_0000_0000_0000
-        #|   25 |# #ux422C_A8B0_A00A_4250 #ux0000_0000_0000_0000
-        #|   26 |# #ux52B7_D2DC_C80C_D2E4 #ux0000_0000_0000_0000
-        #|   27 |# #ux6765_C793_FA10_079D #ux0000_0000_0000_0000
-        #|   28 |# #ux409F_9CBC_7C4A_04C2 #ux1000_0000_0000_0000
-        #|   29 |# #ux50C7_83EB_9B5C_85F2 #ux5400_0000_0000_0000
-        #|   30 |# #ux64F9_64E6_8233_A76F #ux2900_0000_0000_0000
-        #|   31 |# #ux7E37_BE20_22C0_914B #ux1340_0000_0000_0000
-        #|   32 |# #ux4EE2_D6D4_15B8_5ACE #ux7C08_0000_0000_0000
-        #|   33 |# #ux629B_8C89_1B26_7182 #ux5B0A_0000_0000_0000
-        #|   34 |# #ux7B42_6FAB_61F0_0DE3 #ux31CC_8000_0000_0000
-        #|   35 |# #ux4D09_85CB_1D36_08AE #ux0F1F_D000_0000_0000
-        #|   36 |# #ux604B_E73D_E483_8AD9 #ux52E7_C400_0000_0000
-        #|   37 |# #ux785E_E10D_5DA4_6D90 #ux07A1_B500_0000_0000
-        #|   38 |# #ux4B3B_4CA8_5A86_C47A #ux04C5_1120_0000_0000
-        #|   39 |# #ux5E0A_1FD2_7128_7598 #ux45F6_5568_0000_0000
-        #|   40 |# #ux758C_A7C7_0D72_92FE #ux5773_EAC2_0000_0000
-        #|   41 |# #ux4977_E8DC_6867_9BDF #ux16A8_72B9_4000_0000
-        #|   42 |# #ux5BD5_E313_8281_82D6 #ux7C52_8F67_9000_0000
-        #|   43 |# #ux72CB_5BD8_6321_E38C #ux5B67_3341_7400_0000
-        #|   44 |# #ux47BF_1967_3DF5_2E37 #ux7920_8008_E880_0000
-        #|   45 |# #ux59AE_DFC1_0D72_79C5 #ux7768_A00B_22A0_0000
-        #|   46 |# #ux701A_97B1_50CF_1837 #ux3542_C80D_EB48_0000
-        #|   47 |# #ux4610_9ECE_D281_6F22 #ux5149_BD08_B30D_0000
-        #|   48 |# #ux5794_C682_8721_CAEB #ux259C_2C4A_DFD0_4000
-        #|   49 |# #ux6D79_F823_28EA_3DA6 #ux0F03_375D_97C4_5000
-        #|   50 |# #ux446C_3B15_F992_6687 #ux6962_029A_7EDA_B200
-        #|   51 |# #ux5587_49DB_77F7_0029 #ux63BA_8341_1E91_5E80
-        #|   52 |# #ux6AE9_1C52_55F4_C034 #ux1CA9_2411_6635_B620
-        #|   53 |# #ux42D1_B1B3_75B8_F820 #ux51E9_B68A_DFE1_91D4
-        #|   54 |# #ux5386_1E20_5327_3628 #ux6664_242D_97D9_F649
+        #|    0 |# #ux4000_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    1 |# #ux5000_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    2 |# #ux6400_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    3 |# #ux7D00_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    4 |# #ux4E20_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    5 |# #ux61A8_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    6 |# #ux7A12_0000_0000_0000 #ux0000_0000_0000_0001
+        #|    7 |# #ux4C4B_4000_0000_0000 #ux0000_0000_0000_0001
+        #|    8 |# #ux5F5E_1000_0000_0000 #ux0000_0000_0000_0001
+        #|    9 |# #ux7735_9400_0000_0000 #ux0000_0000_0000_0001
+        #|   10 |# #ux4A81_7C80_0000_0000 #ux0000_0000_0000_0001
+        #|   11 |# #ux5D21_DBA0_0000_0000 #ux0000_0000_0000_0001
+        #|   12 |# #ux746A_5288_0000_0000 #ux0000_0000_0000_0001
+        #|   13 |# #ux48C2_7395_0000_0000 #ux0000_0000_0000_0001
+        #|   14 |# #ux5AF3_107A_4000_0000 #ux0000_0000_0000_0001
+        #|   15 |# #ux71AF_D498_D000_0000 #ux0000_0000_0000_0001
+        #|   16 |# #ux470D_E4DF_8200_0000 #ux0000_0000_0000_0001
+        #|   17 |# #ux58D1_5E17_6280_0000 #ux0000_0000_0000_0001
+        #|   18 |# #ux6F05_B59D_3B20_0000 #ux0000_0000_0000_0001
+        #|   19 |# #ux4563_9182_44F4_0000 #ux0000_0000_0000_0001
+        #|   20 |# #ux56BC_75E2_D631_0000 #ux0000_0000_0000_0001
+        #|   21 |# #ux6C6B_935B_8BBD_4000 #ux0000_0000_0000_0001
+        #|   22 |# #ux43C3_3C19_3756_4800 #ux0000_0000_0000_0001
+        #|   23 |# #ux54B4_0B1F_852B_DA00 #ux0000_0000_0000_0001
+        #|   24 |# #ux69E1_0DE7_6676_D080 #ux0000_0000_0000_0001
+        #|   25 |# #ux422C_A8B0_A00A_4250 #ux0000_0000_0000_0001
+        #|   26 |# #ux52B7_D2DC_C80C_D2E4 #ux0000_0000_0000_0001
+        #|   27 |# #ux6765_C793_FA10_079D #ux0000_0000_0000_0001
+        #|   28 |# #ux409F_9CBC_7C4A_04C2 #ux1000_0000_0000_0001
+        #|   29 |# #ux50C7_83EB_9B5C_85F2 #ux5400_0000_0000_0001
+        #|   30 |# #ux64F9_64E6_8233_A76F #ux2900_0000_0000_0001
+        #|   31 |# #ux7E37_BE20_22C0_914B #ux1340_0000_0000_0001
+        #|   32 |# #ux4EE2_D6D4_15B8_5ACE #ux7C08_0000_0000_0001
+        #|   33 |# #ux629B_8C89_1B26_7182 #ux5B0A_0000_0000_0001
+        #|   34 |# #ux7B42_6FAB_61F0_0DE3 #ux31CC_8000_0000_0001
+        #|   35 |# #ux4D09_85CB_1D36_08AE #ux0F1F_D000_0000_0001
+        #|   36 |# #ux604B_E73D_E483_8AD9 #ux52E7_C400_0000_0001
+        #|   37 |# #ux785E_E10D_5DA4_6D90 #ux07A1_B500_0000_0001
+        #|   38 |# #ux4B3B_4CA8_5A86_C47A #ux04C5_1120_0000_0001
+        #|   39 |# #ux5E0A_1FD2_7128_7598 #ux45F6_5568_0000_0001
+        #|   40 |# #ux758C_A7C7_0D72_92FE #ux5773_EAC2_0000_0001
+        #|   41 |# #ux4977_E8DC_6867_9BDF #ux16A8_72B9_4000_0001
+        #|   42 |# #ux5BD5_E313_8281_82D6 #ux7C52_8F67_9000_0001
+        #|   43 |# #ux72CB_5BD8_6321_E38C #ux5B67_3341_7400_0001
+        #|   44 |# #ux47BF_1967_3DF5_2E37 #ux7920_8008_E880_0001
+        #|   45 |# #ux59AE_DFC1_0D72_79C5 #ux7768_A00B_22A0_0001
+        #|   46 |# #ux701A_97B1_50CF_1837 #ux3542_C80D_EB48_0001
+        #|   47 |# #ux4610_9ECE_D281_6F22 #ux5149_BD08_B30D_0001
+        #|   48 |# #ux5794_C682_8721_CAEB #ux259C_2C4A_DFD0_4001
+        #|   49 |# #ux6D79_F823_28EA_3DA6 #ux0F03_375D_97C4_5001
+        #|   50 |# #ux446C_3B15_F992_6687 #ux6962_029A_7EDA_B201
+        #|   51 |# #ux5587_49DB_77F7_0029 #ux63BA_8341_1E91_5E81
+        #|   52 |# #ux6AE9_1C52_55F4_C034 #ux1CA9_2411_6635_B621
+        #|   53 |# #ux42D1_B1B3_75B8_F820 #ux51E9_B68A_DFE1_91D5
+        #|   54 |# #ux5386_1E20_5327_3628 #ux6664_242D_97D9_F64A
         #|   55 |# #ux6867_A5A8_67F1_03B2 #ux7FFD_2D38_FDD0_73DC
         #|   56 |# #ux4140_C789_40F6_A24F #ux6FFE_3C43_9EA2_486A
         #|   57 |# #ux5190_F96B_9134_4AE3 #ux6BFD_CB54_864A_DA84
@@ -680,16 +680,16 @@
         #|  323 |# #ux7E7B_160E_F71C_1621 #ux119C_A780_F767_B5EE
         #|  324 |# #ux4F0C_EDC9_5A71_8DD4 #ux5B01_E8B0_9AA0_D1B5))
 
-(define MathUtils.ceilPow5d-laload
+(define MathUtils.floorPow10p1d-laload
   ((index acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
    ((index (acl2::sbyte32-fix index))
     ((unless (<= 0 index)) nil)
-    (val (nth index *MathUtils.ceilPow5d*)))
+    (val (nth index *MathUtils.floorPow10p1d*)))
    (and (acl2::sbyte64p val) val))
   ///
-  (fty::deffixequiv MathUtils.ceilPow5d-laload))
+  (fty::deffixequiv MathUtils.floorPow10p1d-laload))
 
 (define MathUtils.flog10pow2
   ((e acl2::sbyte32p))
@@ -725,26 +725,26 @@
   ///
   (fty::deffixequiv MathUtils.flog2pow10))
 
-(define MathUtils.ceilPow5dHigh
+(define MathUtils.floorPow10p1dHigh
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
    ((e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
     (e-MIN_EXP<<1 (ishl e-MIN_EXP 1)))
-   (MathUtils.ceilPow5d-laload e-MIN_EXP<<1))
+   (MathUtils.floorPow10p1d-laload e-MIN_EXP<<1))
   ///
-  (fty::deffixequiv MathUtils.ceilPow5dHigh))
+  (fty::deffixequiv MathUtils.floorPow10p1dHigh))
 
-(define MathUtils.ceilPow5dLow
+(define MathUtils.floorPow10p1dLow
   ((e acl2::sbyte32p))
   :returns (val (implies val (acl2::sbyte64p val)))
   (acl2::b*
    ((e-MIN_EXP (isub e *MathUtils.MIN_EXP*))
     (e-MIN_EXP<<1 (ishl e-MIN_EXP 1))
     (e-MIN_EXP<<1!1 (ior e-MIN_EXP<<1 1)))
-   (MathUtils.ceilPow5d-laload e-MIN_EXP<<1!1))
+   (MathUtils.floorPow10p1d-laload e-MIN_EXP<<1!1))
   ///
-  (fty::deffixequiv MathUtils.ceilPow5dLow))
+  (fty::deffixequiv MathUtils.floorPow10p1dLow))
 
 (defrulel enumerateQ
   (implies (and (<= (Qmin (dp)) (acl2::sbyte32-fix e))
@@ -791,27 +791,27 @@
            (equal (MathUtils.flog10threeQuartersPow2 e)
                   (1- (ordD (* 3/4 (expt 2 (acl2::sbyte32-fix e))))))))
 
-(define floorPow5d
+(define floorPow10
   ((e integerp))
   :returns (result natp :rule-classes :type-prescription)
-  (fl (sigc (expt (D/2) e) 63 2))
+  (fl (sigc (expt (D) e) 63 2))
   ///
-  (fty::deffixequiv floorPow5d)
-  (defrule floorPow5d-linear
-    (and (<= #fx1p62 (floorPow5d e))
-         (< (floorPow5d e) #fx1p63))
+  (fty::deffixequiv floorPow10)
+  (defrule floorPow10-linear
+    (and (<= #fx1p62 (floorPow10 e))
+         (< (floorPow10 e) #fx1p63))
     :rule-classes :linear
     :enable (sigc-lower-bound sigc-upper-bound)))
 
-(define ceilPow5d
+(define floorPow10p1
   ((e integerp))
   :returns (result posp :rule-classes :type-prescription)
-  (cg (sigc (expt (D/2) e) 126 2))
+  (+ (fl (sigc (expt (D/2) e) 126 2)) 1)
   ///
-  (fty::deffixequiv ceilPow5d)
-  (defrule ceilPow5d-linear
-    (and (<= #fx1p125 (ceilPow5d e))
-         (<= (ceilPow5d e) #fx1p126))
+  (fty::deffixequiv floorPow10p1)
+  (defrule floorPow10p1-linear
+    (and (< #fx1p125 (floorPow10p1 e))
+         (<= (floorPow10p1 e) #fx1p126))
     :rule-classes :linear
     :enable (sigc-lower-bound sigc-upper-bound)))
 
@@ -821,9 +821,11 @@
         (<= *MathUtils.MIN_EXP* e)
         (<= e *MathUtils.MAX_EXP*))
    (and (equal (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-        (equal (MathUtils.ceilPow5dHigh e) (floorPow5d e))
-        (equal (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
-        (equal (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))))
+        (equal (MathUtils.floorPow10p1dHigh e) (floorPow10 e))
+        (equal (MathUtils.floorPow10p1dHigh e)
+               (acl2::logtail 63 (floorPow10p1 e)))
+        (equal (MathUtils.floorPow10p1dLow e)
+               (acl2::loghead 63 (floorPow10p1 e)))))
   :disable (acl2::loghead acl2::logtail)
   :use (:instance ok-below-lemma (emax *MathUtils.MAX_EXP*))
   :prep-lemmas
@@ -832,9 +834,11 @@
      (or (not (integerp e))
          (< e *MathUtils.MIN_EXP*)
          (and (= (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-              (= (MathUtils.ceilPow5dHigh e) (floorPow5d e))
-              (= (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
-              (= (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))
+              (= (MathUtils.floorPow10p1dHigh e) (floorPow10 e))
+              (= (MathUtils.floorPow10p1dHigh e)
+                 (acl2::logtail 63 (floorPow10p1 e)))
+              (= (MathUtils.floorPow10p1dLow e)
+                 (acl2::loghead 63 (floorPow10p1 e)))
               (ok-below (1- e)))))
    (defrule ok-below-lemma
      (implies
@@ -844,9 +848,11 @@
            (<= e emax)
            (ok-below emax))
       (and (= (MathUtils.flog2pow10 e) (1- (ord2 (expt (D) e))))
-           (= (MathUtils.ceilPow5dHigh e) (floorPow5d e))
-           (= (MathUtils.ceilPow5dHigh e) (acl2::logtail 63 (ceilPow5d e)))
-           (= (MathUtils.ceilPow5dLow e) (acl2::loghead 63 (ceilPow5d e)))))
+           (= (MathUtils.floorPow10p1dHigh e) (floorPow10 e))
+           (= (MathUtils.floorPow10p1dHigh e)
+              (acl2::logtail 63 (floorPow10p1 e)))
+           (= (MathUtils.floorPow10p1dLow e)
+              (acl2::loghead 63 (floorPow10p1 e)))))
      :disable (expt (tau-system)))))
 
 (defruled MathUtils.flog2pow10-as-ord2
@@ -856,23 +862,23 @@
                   (1- (ord2 (expt (D) (acl2::sbyte32-fix e))))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))
 
-(defruled MathUtils.ceilPow5dHigh-as-ceil
+(defruled MathUtils.floorPow10p1dHigh-as-floorPow10p1
   (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                 (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5dHigh e)
-                  (acl2::logtail 63 (ceilPow5d (acl2::sbyte32-fix e)))))
+           (equal (MathUtils.floorPow10p1dHigh e)
+                  (acl2::logtail 63 (floorPow10p1 (acl2::sbyte32-fix e)))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))
 
-(defruled MathUtils.ceilPow5dLow-as-ceil
+(defruled MathUtils.floorPow10p1dLow-as-floorPow10p1
    (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                  (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5dLow e)
-                  (acl2::loghead 63 (ceilPow5d (acl2::sbyte32-fix e)))))
+           (equal (MathUtils.floorPow10p1dLow e)
+                  (acl2::loghead 63 (floorPow10p1 (acl2::sbyte32-fix e)))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))
 
-(defruled MathUtils.ceilPow5dHigh-as-floor
+(defruled MathUtils.floorPow10p1dHigh-as-floorPow10
   (implies (and (<= *MathUtils.MIN_EXP* (acl2::sbyte32-fix e))
                 (<= (acl2::sbyte32-fix e) *MathUtils.MAX_EXP*))
-           (equal (MathUtils.ceilPow5dHigh e)
-                  (floorPow5d (acl2::sbyte32-fix e))))
+           (equal (MathUtils.floorPow10p1dHigh e)
+                  (floorPow10 (acl2::sbyte32-fix e))))
   :use (:instance enumerateE (e (acl2::sbyte32-fix e))))

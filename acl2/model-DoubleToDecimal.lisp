@@ -750,6 +750,61 @@
                      (y (alpha@ enc))
                      (b 2))))
 
+(define delta@
+   ((enc acl2::ubyte64p))
+   :returns (delta@ acl2::sbyte32p)
+   (if (regular@ enc)
+       (acl2::b*
+        ((61-q (isub 61 (q@ enc)))
+         (-k (ineg (k@ enc)))
+         (flog2pow10{-k} (MathUtils.flog2pow10 -k))
+         (61-q-flog2pow10{-k} (isub 61-q flog2pow10{-k})))
+        61-q-flog2pow10{-k})
+     (acl2::b*
+      ((62-q (isub 62 (q@ enc)))
+       (-k (ineg (k@ enc)))
+       (flog2pow10{-k} (MathUtils.flog2pow10 -k))
+       (62-q-flog2pow10{-k} (isub 62-q flog2pow10{-k})))
+      62-q-flog2pow10{-k}))
+   ///
+   (fty::deffixequiv delta@)
+   (acl2::with-arith5-help
+    (defruled delta@-as-ord2alpha@
+      (equal (delta@ enc)
+             (- 62 (ord2alpha@ enc)))
+      :enable (MathUtils.flog2pow10-as-ord2
+               ineg isub sbyte32-suff
+               alpha@ ord2alpha@-as-alpha@ qb@ ord2 expe-shift)
+      :use k@-linear
+      :prep-lemmas
+      ((defrule expe-D^{-k}-linear
+         (and (<= -971 (expe (expt (D) (- (k@ enc))) 2))
+              (<= (expe (expt (D) (- (k@ enc))) 2) 1076))
+         :rule-classes :linear
+         :use ((:instance expe-monotone
+                          (x (expt (D) *MathUtils.MIN_EXP*))
+                          (y (expt (D) (- (k@ enc))))
+                          (b 2))
+               (:instance expe-monotone
+                          (x (expt (D) (- (k@ enc))))
+                          (y (expt (D) *MathUtils.MAX_EXP*))
+                          (b 2)))
+         :prep-lemmas
+         ((defrule lemma
+            (and (equal (expe (expt (D) *MathUtils.MIN_EXP*) 2) -971)
+                 (equal (expe (expt (D) *MathUtils.MAX_EXP*) 2) 1076))
+            :enable ((D))))))))
+   (defrule delta@-linear
+     (and (<= 58 (delta@ enc))
+          (<= (delta@ enc) 62))
+     :rule-classes :linear
+     :enable delta@-as-ord2alpha@)
+   (defrule delta@-when-regular
+     (implies (regular@ enc)
+              (<= (delta@ enc) 61))
+     :rule-classes :linear
+     :enable delta@-as-ord2alpha@))
+
 (define cbl@
   ((enc acl2::ubyte64p))
   :returns (cbr@ acl2::sbyte64p)
@@ -784,133 +839,80 @@
     :enable (cbl@-linear dp)
     :disable cbl@))
 
-(define mask@
+(define g1@
   ((enc acl2::ubyte64p))
-  :returns (mask@ acl2::sbyte64p)
-  (acl2::b*
-   ((63-ord2alpha (isub 63 (ord2alpha@ enc)))
-    (1<<63-ord2alpha (lshl 1 63-ord2alpha))
-    ({1<<63-ord2alpha}-1 (lsub 1<<63-ord2alpha 1)))
-   {1<<63-ord2alpha}-1)
-  ///
-  (fty::deffixequiv mask@)
-  (defruled mask@-as-ord2alpha@
-    (equal (mask@ enc) (acl2::logmask (- 63 (ord2alpha@ enc))))
-    :prep-lemmas
-    ((gl::def-gl-rule lemma
-       :hyp (unsigned-byte-p 3 ord2alpha)
-       :concl (and (equal (lsub (lshl 1 (isub 63 ord2alpha)) 1)
-                          (acl2::logmask (- 63 ord2alpha))))
-       :g-bindings (gl::auto-bindings (:nat ord2alpha 3)))))
-  (acl2::with-arith5-nonlinear-help
-   (defrule mask@-linear
-     (and (<= #ux7ff_ffff_ffff_ffff (mask@ enc))
-          (<= (mask@ enc) #ux7fff_ffff_ffff_ffff))
-     :rule-classes :linear
-     :enable mask@-as-ord2alpha@
-     :disable mask@
-     :use ord2alpha@-linear)))
-
-(define threshold@
-  ((enc acl2::ubyte64p))
-  :returns (threshold@ acl2::sbyte64p)
-  (acl2::b*
-   ((62-ord2alpha (isub 62 (ord2alpha@ enc)))
-    (1<<62-ord2alpha (lshl 1 62-ord2alpha)))
-   1<<62-ord2alpha)
-  ///
-  (fty::deffixequiv threshold@)
-  (defruled threshold@-as-ord2alpha@
-    (equal (threshold@ enc) (expt 2 (- 62 (ord2alpha@ enc))))
-    :prep-lemmas
-    ((gl::def-gl-rule lemma
-       :hyp (unsigned-byte-p 3 ord2alpha)
-       :concl (and (equal (lshl 1 (isub 62 ord2alpha))
-                          (expt 2 (- 62 ord2alpha))))
-       :g-bindings (gl::auto-bindings (:nat ord2alpha 3)))))
-  (acl2::with-arith5-nonlinear-help
-   (defrule threshold@-linear
-     (and (<= #fx1p58 (threshold@ enc))
-          (<= (threshold@ enc) #fx1p62))
-     :rule-classes :linear
-     :enable threshold@-as-ord2alpha@
-     :disable threshold@
-     :use ord2alpha@-linear)))
-
-(define pow51@
-  ((enc acl2::ubyte64p))
-  :returns (pow51@ acl2::sbyte64p
-                   :hints (("goal" :in-theory
-                            (enable MathUtils.ceilPow5dHigh-as-floor
-                                    ineg sbyte32-suff))))
+  :returns (g1@ acl2::sbyte64p
+                :hints (("goal" :in-theory
+                         (enable MathUtils.floorPow10p1dHigh-as-floorPow10
+                                 ineg sbyte32-suff))))
   (acl2::b*
    ((-k (ineg (k@ enc)))
-    (ceilPow5dHigh{-k} (MathUtils.ceilPow5dHigh -k)))
-   ceilPow5dHigh{-k})
+    (floorPow10p1dHigh{-k} (MathUtils.floorPow10p1dHigh -k)))
+   floorPow10p1dHigh{-k})
   ///
-  (fty::deffixequiv pow51@)
-  (defruled pow51@-as-ceilPow5d
-    (equal (pow51@ enc) (acl2::logtail 63 (ceilPow5d (- (k@ enc)))))
-    :enable (MathUtils.ceilPow5dHigh-as-ceil ineg sbyte32-suff)
+  (fty::deffixequiv g1@)
+  (defruled g1@-as-floorPow10p1
+    (equal (g1@ enc) (acl2::logtail 63 (floorPow10p1 (- (k@ enc)))))
+    :enable (MathUtils.floorPow10p1dHigh-as-floorPow10p1 ineg sbyte32-suff)
     :disable acl2::logtail)
-  (defrule pow51@-type
-    (natp (pow51@ enc))
+  (defrule g1@-type
+    (natp (g1@ enc))
     :rule-classes :type-prescription
-    :enable pow51@-as-ceilPow5d)
-  (defrule pow51@-linear
-    (< (pow51@ enc) #fx1p63)
+    :enable g1@-as-floorPow10p1)
+  (defrule g1@-linear
+    (< (g1@ enc) #fx1p63)
     :rule-classes :linear
-    :enable (MathUtils.ceilPow5dHigh-as-floor ineg sbyte32-suff)))
+    :enable (MathUtils.floorPow10p1dHigh-as-floorPow10 ineg sbyte32-suff)))
 
 
-(define pow50@
+(define g0@
   ((enc acl2::ubyte64p))
-  :returns (pow50@ acl2::sbyte64p
-                   :hints (("goal" :in-theory
-                            (enable MathUtils.ceilPow5dLow-as-ceil
-                                    ineg sbyte32-suff sbyte64-suff))))
+  :returns (g0@ acl2::sbyte64p
+                :hints (("goal" :in-theory
+                         (enable MathUtils.floorPow10p1dLow-as-floorPow10p1
+                                 ineg sbyte32-suff sbyte64-suff))))
   (acl2::b*
    ((-k (ineg (k@ enc)))
-    (ceilPow5dLow{-k} (MathUtils.ceilPow5dLow -k)))
-   ceilPow5dLow{-k})
+    (floorPow10p1dLow{-k} (MathUtils.floorPow10p1dLow -k)))
+   floorPow10p1dLow{-k})
   ///
-  (fty::deffixequiv pow50@)
-  (defruled pow50@-as-ceilPow5d
-    (equal (pow50@ enc) (acl2::loghead 63 (ceilPow5d (- (k@ enc)))))
-    :enable (MathUtils.ceilPow5dLow-as-ceil ineg sbyte32-suff)
+  (fty::deffixequiv g0@)
+  (defruled g0@-as-floorPow10p1
+    (equal (g0@ enc) (acl2::loghead 63 (floorPow10p1 (- (k@ enc)))))
+    :enable (MathUtils.floorPow10p1dLow-as-floorPow10p1 ineg sbyte32-suff)
     :disable acl2::logtail)
-  (defrule pow50@-type
-    (natp (pow50@ enc))
+  (defrule g0@-type
+    (natp (g0@ enc))
     :rule-classes :type-prescription
-    :enable pow50@-as-ceilPow5d)
-  (defrule pow50@-linear
-    (< (pow50@ enc) #fx1p63)
+    :enable g0@-as-floorPow10p1)
+  (defrule g0@-linear
+    (< (g0@ enc) #fx1p63)
     :rule-classes :linear
-    :enable pow50@-as-ceilPow5d))
+    :enable g0@-as-floorPow10p1))
 
 (define x0@
   ((enc acl2::ubyte64p))
   :returns (x0@ acl2::sbyte64p)
   (acl2::b*
-   ((pow50*cb (lmul (pow50@ enc) (cb@ enc))))
-   pow50*cb)
+   ((g0*cb (lmul (g0@ enc) (cb@ enc))))
+   g0*cb)
   ///
   (fty::deffixequiv x0@)
   (defruled x0@-as-cb@
     (equal (x0@ enc)
-           (long-fix (* (pow50@ enc) (cb@ enc))))
+           (long-fix (* (g0@ enc) (cb@ enc))))
     :enable lmul))
 
 (define x1@
   ((enc acl2::ubyte64p))
   :returns (x1@ acl2::sbyte64p)
   (acl2::b*
-   ((multiplyHigh{pow50?cb} (Math.multiplyHigh (pow50@ enc) (cb@ enc))))
-   multiplyHigh{pow50?cb})
+   ((multiplyHigh{g0?cb} (Math.multiplyHigh (g0@ enc) (cb@ enc))))
+   multiplyHigh{g0?cb})
   ///
   (fty::deffixequiv x1@)
   (defruled x1@-as-cb@
-    (equal (x1@ enc) (acl2::logtail 64 (* (pow50@ enc) (cb@ enc)))))
+    (equal (x1@ enc) (acl2::logtail 64 (* (g0@ enc) (cb@ enc)))))
   (defrule x1@-type
     (natp (x1@ enc))
     :rule-classes :type-prescription)
@@ -920,36 +922,36 @@
      :rule-classes :linear)))
 
 (acl2::with-arith5-help
- (defruled cb@*pow50@-as-x0-x1
-  (equal (* (cb@ enc) (pow50@ enc))
+ (defruled cb@*g0@-as-x0-x1
+  (equal (* (cb@ enc) (g0@ enc))
          (+ (acl2::loghead 64 (x0@ enc)) (* #fx1p64 (x1@ enc))))
   :enable (x0@-as-cb@ x1@-as-cb@)
   :disable loghead-64-longfix
-  :use (:instance loghead-64-longfix (x (* (cb@ enc) (pow50@ enc))))))
+  :use (:instance loghead-64-longfix (x (* (cb@ enc) (g0@ enc))))))
 
 (define y0@
   ((enc acl2::ubyte64p))
   :returns (y0@ acl2::sbyte64p)
   (acl2::b*
-   ((pow51*cb (lmul (pow51@ enc) (cb@ enc))))
-   pow51*cb)
+   ((g1*cb (lmul (g1@ enc) (cb@ enc))))
+   g1*cb)
   ///
   (fty::deffixequiv y0@)
   (defruled y0@-as-cb@
     (equal (y0@ enc)
-           (long-fix (* (pow51@ enc) (cb@ enc))))
+           (long-fix (* (g1@ enc) (cb@ enc))))
     :enable lmul))
 
 (define y1@
   ((enc acl2::ubyte64p))
   :returns (y1@ acl2::sbyte64p)
   (acl2::b*
-   ((multiplyHigh{pow51?cb} (Math.multiplyHigh (pow51@ enc) (cb@ enc))))
-   multiplyHigh{pow51?cb})
+   ((multiplyHigh{g1?cb} (Math.multiplyHigh (g1@ enc) (cb@ enc))))
+   multiplyHigh{g1?cb})
   ///
   (fty::deffixequiv y1@)
   (defruled y1@-as-cb@
-    (equal (y1@ enc) (acl2::logtail 64 (* (pow51@ enc) (cb@ enc)))))
+    (equal (y1@ enc) (acl2::logtail 64 (* (g1@ enc) (cb@ enc)))))
   (defrule y1@-type
     (natp (y1@ enc))
     :rule-classes :type-prescription)
@@ -959,12 +961,12 @@
      :rule-classes :linear)))
 
 (acl2::with-arith5-help
- (defruled cb@*pow51@-as-y0-y1
-  (equal (* (cb@ enc) (pow51@ enc))
+ (defruled cb@*g1@-as-y0-y1
+  (equal (* (cb@ enc) (g1@ enc))
          (+ (acl2::loghead 64 (y0@ enc)) (* #fx1p64 (y1@ enc))))
   :enable (y0@-as-cb@ y1@-as-cb@)
   :disable loghead-64-longfix
-  :use (:instance loghead-64-longfix (x (* (cb@ enc) (pow51@ enc))))))
+  :use (:instance loghead-64-longfix (x (* (cb@ enc) (g1@ enc))))))
 
 (define z@
   ((enc acl2::ubyte64p))
@@ -1039,24 +1041,24 @@
   (acl2::with-arith5-help
    (defruled p@-as-cb@
      (equal (p@ enc)
-            (* (ceilPow5d (- (k@ enc))) (cb@ enc)))
+            (* (floorPow10p1 (- (k@ enc))) (cb@ enc)))
      :use ((:instance lemma
                       (enc (acl2::ubyte64-fix enc))
                       (x0 (acl2::loghead 64 (x0@ enc)))
                       (x1 (x1@ enc))
                       (y0 (acl2::loghead 64 (y0@ enc)))
                       (y1 (y1@ enc)))
-           cb@*pow50@-as-x0-x1
-           cb@*pow51@-as-y0-y1)
+           cb@*g0@-as-x0-x1
+           cb@*g1@-as-y0-y1)
      :disable acl2::loghead
      :prep-lemmas
      ((acl2::with-arith5-help
        (defrule lemma0
-         (equal (ceilPow5d (- (k@ enc)))
-                (+ (pow50@ enc)
-                   (ash (pow51@ enc) 63)))
-         :enable (pow50@-as-ceilPow5d
-                  pow51@-as-ceilPow5d)))
+         (equal (floorPow10p1 (- (k@ enc)))
+                (+ (g0@ enc)
+                   (ash (g1@ enc) 63)))
+         :enable (g0@-as-floorPow10p1
+                  g1@-as-floorPow10p1)))
       (gl::gl-set-uninterpreted x0@)
       (gl::gl-set-uninterpreted x1@)
       (gl::gl-set-uninterpreted y0@)
@@ -1087,7 +1089,73 @@
       :enable p@-as-cb@
       :disable p@))))
 
-(define vn-inexact@
+(define vbp@
+  ((enc acl2::ubyte64p))
+  :returns (vbp@ acl2::sbyte64p)
+  (acl2::b*
+   ((63-delta (isub 63 (delta@ enc)))
+    (p2<<63-delta (lshl (p2@ enc) 63-delta))
+    (p1>>>delta (lushr (p1@ enc) (delta@ enc)))
+    (p2<<63-delta!p1>>>delta (lor p2<<63-delta p1>>>delta)))
+   p2<<63-delta!p1>>>delta)
+  ///
+  (fty::deffixequiv vbp@))
+
+(define threshold@
+  ((enc acl2::ubyte64p))
+  :returns (threshold@ acl2::sbyte64p)
+  (acl2::b*
+   ((1<<delta (lshl 1 (delta@ enc))))
+   1<<delta)
+  ///
+  (fty::deffixequiv threshold@)
+  (defruled threshold@-as-ord2alpha@
+    (equal (threshold@ enc) (expt 2 (- 62 (ord2alpha@ enc))))
+    :enable delta@-as-ord2alpha@
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (unsigned-byte-p 3 ord2alpha)
+       :concl (and (equal (lshl 1 (- 62 ord2alpha))
+                          (expt 2 (- 62 ord2alpha))))
+       :g-bindings (gl::auto-bindings (:nat ord2alpha 3)))))
+  (acl2::with-arith5-nonlinear-help
+   (defrule threshold@-linear
+     (and (<= #fx1p58 (threshold@ enc))
+          (<= (threshold@ enc) #fx1p62))
+     :rule-classes :linear
+     :enable threshold@-as-ord2alpha@
+     :disable threshold@
+     :use ord2alpha@-linear)))
+
+(define mask@
+  ((enc acl2::ubyte64p))
+  :returns (mask@ acl2::sbyte64p)
+  (acl2::b*
+   ((delta+1 (iadd (delta@ enc) 1))
+    (1<<delta+1 (lshl 1 delta+1))
+    ({1<<delta+1}-1 (lsub 1<<delta+1 1)))
+   {1<<delta+1}-1)
+  ///
+  (fty::deffixequiv mask@)
+  (defruled mask@-as-ord2alpha@
+    (equal (mask@ enc) (acl2::logmask (- 63 (ord2alpha@ enc))))
+    :enable delta@-as-ord2alpha@
+    :prep-lemmas
+    ((gl::def-gl-rule lemma
+       :hyp (unsigned-byte-p 3 ord2alpha)
+       :concl (and (equal (lsub (lshl 1 (iadd (- 62 ord2alpha) 1)) 1)
+                          (acl2::logmask (- 63 ord2alpha))))
+       :g-bindings (gl::auto-bindings (:nat ord2alpha 3)))))
+  (acl2::with-arith5-nonlinear-help
+   (defrule mask@-linear
+     (and (<= #ux7ff_ffff_ffff_ffff (mask@ enc))
+          (<= (mask@ enc) #ux7fff_ffff_ffff_ffff))
+     :rule-classes :linear
+     :enable mask@-as-ord2alpha@
+     :disable mask@
+     :use ord2alpha@-linear)))
+
+(define vb-inexact@
   ((enc acl2::ubyte64p))
   :returns (vn-inexact@ booleanp :rule-classes ())
   (acl2::b*
@@ -1096,23 +1164,16 @@
     (p0>=threshold (iflt (lcmp (p0@ enc) (threshold@ enc)))))
    (or {p1&mask}!=0 p0>=threshold))
   ///
-  (fty::deffixequiv vn-inexact@))
+  (fty::deffixequiv vb-inexact@))
 
-(define vn@
+(define vb@
   ((enc acl2::ubyte64p))
-  :returns (vn@ acl2::sbyte64p)
-  (acl2::b*
-   ((1+ord2alpha (iadd 1 (ord2alpha@ enc)))
-    (p2<<1+ord2alpha (lshl (p2@ enc) 1+ord2alpha))
-    (62-ord2alpha (isub 62 (ord2alpha@ enc)))
-    (p1>>>62-ord2alpha (lushr (p1@ enc) 62-ord2alpha))
-    (p2<<1+ord2alpha!p1>>>62-ord2alpha (lor p2<<1+ord2alpha
-                                            p1>>>62-ord2alpha)))
-   (if (vn-inexact@ enc)
-       (lor p2<<1+ord2alpha!p1>>>62-ord2alpha 1)
-     p2<<1+ord2alpha!p1>>>62-ord2alpha))
+  :returns (vb@ acl2::sbyte64p)
+  (if (vb-inexact@ enc)
+      (lor (vbp@ enc) 1)
+    (vbp@ enc))
   ///
-  (fty::deffixequiv vn@))
+  (fty::deffixequiv vb@))
 
 (define approx@
    ((enc acl2::ubyte64p))
@@ -1122,22 +1183,31 @@
    (fty::deffixequiv approx@))
 
 (acl2::with-arith5-nonlinear-help
- (defruled vn@-as-round-Newmann-approx
-   (equal (vn@ enc)
+ (defruled vb@-as-round-Newmann-approx
+   (equal (vb@ enc)
           (round-Newmann-approx (approx@ enc) #fx1p-64))
-   :enable (round-Newmann-approx approx@)
+   :enable (round-Newmann-approx delta@-as-ord2alpha@ approx@)
    :use ((:instance lemma
                     (enc (acl2::ubyte64-fix enc))
                     (p0 (p0@ enc))
                     (p1 (p1@ enc))
                     (p2 (acl2::loghead 64 (p2@ enc)))
                     (ord2alpha (ord2alpha@ enc)))
+         (:instance lemma0
+                    (x (p@ enc))
+                    (ord2alpha (ord2alpha@ enc)))
          (:instance longfix-loghead-64 (x (p2@ enc))))
    :prep-lemmas
-   ((gl::gl-set-uninterpreted p0@)
+   ((defruled lemma0
+      (implies (and (real/rationalp x)
+                    (integerp ord2alpha))
+               (equal (<= #fx1p-64 (mod (* x (expt 2 (+ -126 ord2alpha))) 1))
+                      (<= (expt 2 (- 62 ord2alpha))
+                          (mod x (expt 2 (- 126 ord2alpha)))))))
+    (gl::gl-set-uninterpreted p0@)
     (gl::gl-set-uninterpreted p1@)
     (gl::gl-set-uninterpreted p2@)
-    (gl::gl-set-uninterpreted ord2alpha@)
+    (gl::gl-set-uninterpreted delta@)
     (gl::def-gl-rule lemma
       :hyp (and (acl2::ubyte64p enc)
                 (unsigned-byte-p 63 p0)
@@ -1148,9 +1218,9 @@
                 (equal (p0@ enc) p0)
                 (equal (p1@ enc) p1)
                 (equal (p2@ enc) (long-fix p2))
-                (equal (ord2alpha@ enc) ord2alpha))
+                (equal (delta@ enc) (- 62 ord2alpha)))
       :concl (implies (<= (p@ enc) #fx1p180)
-                      (equal (vn@ enc)
+                      (equal (vb@ enc)
                              (+ (* 2 (acl2::logtail (- 126 ord2alpha) (p@ enc)))
                                 (if (>= (acl2::loghead (- 126 ord2alpha) (p@ enc))
                                         (ash 1 (- 62 ord2alpha)))
@@ -1174,11 +1244,10 @@
          (real/rationalp approx)
          (<= x CbMax)
          (<= 0 err)
-         (< err #fx1p-64)
-         (posp n))
-    (equal (round-Newmann-approx (/ approx n) (/ #fx1p-64 n))
-           (round-Newmann (/ alpha*x n)))))
-  :enable (round-Newmann-approx-correct-n q@-linear)
+         (< err #fx1p-64))
+    (equal (round-Newmann-approx approx #fx1p-64)
+           (round-Newmann alpha*x))))
+  :enable (round-Newmann-approx-correct q@-linear)
   :use (:instance alpha-separated-dp-correct
                   (q (q@ enc)))
   :prep-lemmas
@@ -1198,7 +1267,6 @@
   (equal (round-Newmann-approx (approx@ enc) #fx1p-64)
          (round-Newmann (* (alpha@ enc) (cb@ enc))))
   :use (:instance round-Newmann-approx-lemma
-                (n 1)
                 (x (cb@ enc))
                 (approx (approx@ enc)))
   :hints (("subgoal 3" :in-theory (enable dp))
@@ -1207,17 +1275,18 @@
   :prep-lemmas
   ((acl2::with-arith5-nonlinear-help
     (defruled lemma0
-      (and (< (* (1- (ceilPow5d (- (k@ enc))))
+      (and (<= (* (1- (floorPow10p1 (- (k@ enc))))
                  (expt 2 (- (ord2alpha@ enc) 126)))
               (alpha@ enc))
-           (<= (alpha@ enc)
-               (* (ceilPow5d (- (k@ enc)))
+           (< (alpha@ enc)
+               (* (floorPow10p1 (- (k@ enc)))
                   (expt 2 (- (ord2alpha@ enc) 126)))))
      :enable (ord2alpha@-as-alpha@
-              ord2 ceilPow5d alpha@ qb@
-              expt-D-as-expt-D/2 sigc sigm)
-     :use ((:instance cg-def
-                      (x (sigc (expt (D/2) (- (k@ enc))) 126 2))))
+              ord2 floorPow10p1 alpha@ qb@
+              expt-D-as-expt-D/2
+              sigc sigm)
+     :use (:instance fl-def
+                     (x (sigc (expt (D) (- (k@ enc))) 126 2)))
      :prep-lemmas
      ((defrule expe-shift-alt
         (implies (and (rationalp x)
@@ -1255,18 +1324,18 @@
 
 
 (acl2::with-arith5-help
- (defrule vn@-as-round-Newmann
-   (equal (vn@ enc)
+ (defrule vb@-as-round-Newmann
+   (equal (vb@ enc)
           (round-Newmann (/ (v@ enc)
                             (* 1/2 (expt (D) (k@ enc))))))
-   :enable (vn@-as-round-Newmann-approx alpha@ qb@ cb@-as-v@)
+   :enable (vb@-as-round-Newmann-approx alpha@ qb@ cb@-as-v@)
    :use round-Newmann-approx-lemma-cb))
 
 (acl2::with-arith5-nonlinear-help
- (defrule vn@-as-round-Newmann-corr
+ (defrule vb@-as-round-Newmann-corr
    (implies (integerp m)
             (equal (signum (- (v@ enc) (* 1/2 m (expt (D) (k@ enc)))))
-                   (signum (- (vn@ enc) (* 2 m)))))
+                   (signum (- (vb@ enc) (* 2 m)))))
    :use (:instance signum-round-Newmann
                    (x (/ (v@ enc) (* 1/2 (expt (D) (k@ enc))))))
    :enable signum))
