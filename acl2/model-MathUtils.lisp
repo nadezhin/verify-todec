@@ -806,7 +806,7 @@
 (define floorPow10p1
   ((e integerp))
   :returns (result posp :rule-classes :type-prescription)
-  (+ (fl (sigc (expt (D/2) e) 126 2)) 1)
+  (+ (fl (sigc (expt (D) e) 126 2)) 1)
   ///
   (fty::deffixequiv floorPow10p1)
   (defrule floorPow10p1-linear
