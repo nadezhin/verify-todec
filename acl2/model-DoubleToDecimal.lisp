@@ -1169,7 +1169,7 @@
       :rule-classes :linear
       :enable p@-as-cbArg@
       :disable p@))))
-
+#|
 (define vb-inexact@
   ((enc acl2::ubyte64p))
   :returns (vn-inexact@ booleanp :rule-classes ())
@@ -1186,6 +1186,19 @@
   (if (vb-inexact@ enc)
       (lor (vbp@ enc) 1)
     (vbp@ enc))
+  ///
+  (fty::deffixequiv vb@))
+|#
+(define vb@
+  ((enc acl2::ubyte64p))
+  :returns (vb@ acl2::sbyte64p)
+  (acl2::b*
+   ((z&MASK_63 (land (z@ enc) *DoubleToDecimal.MASK_63*))
+    ({z&MASK_63}+MASK_63 (ladd z&MASK_63 *DoubleToDecimal.MASK_63*))
+    ({{z&MASK_63}+MASK_63}>>>63 (lushr {z&MASK_63}+MASK_63 63))
+    (vbp!{{z&MASK_63}+MASK_63}>>>63 (lor (vbp@ enc)
+                                           {{z&MASK_63}+MASK_63}>>>63)))
+   vbp!{{z&MASK_63}+MASK_63}>>>63)
   ///
   (fty::deffixequiv vb@))
 
@@ -1217,15 +1230,17 @@
           (round-Newmann-approx (approx@ enc) #fx1p-64))
    :enable (round-Newmann-approx
             floor-approx@-as-p@
-            vb@ vb-inexact@ p@)
+            vb@ p@)
    :disable acl2::logtail
    :use frac-approx@<=2^-64-as-p@
    :prep-lemmas
    ((gl::def-gl-rule lemma
       :hyp (and (acl2::sbyte64p z)
                 (unsigned-byte-p 62 vbp))
-      :concl (equal (if (ifne (lcmp (lshl z 1) 0)) vbp (lor vbp 1))
-                    (let ((p  (+ (acl2::loghead 63 z) (ash vbp 63))))
+      :concl (equal (lor vbp (lushr (ladd (land z *DoubleToDecimal.MASK_63*)
+                                          *DoubleToDecimal.MASK_63*)
+                                    63))
+                    (let ((p (+ (acl2::loghead 63 z) (ash vbp 63))))
                       (+ (* 2 (acl2::logtail 64 p))
                          (if (= (acl2::loghead 64 p) 0) 0 1))))
       :g-bindings (gl::auto-bindings
