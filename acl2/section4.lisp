@@ -1,11 +1,11 @@
 (in-package "RTL")
-(include-book "section2")
+(include-book "section3")
 
 (local (include-book "rtl/rel11/support/float" :dir :system))
 (local (include-book "reps-lemmas"))
 (local (acl2::allow-arith5-help))
 
-; Section 3 of the paper
+; Section 4 of the paper
 
 (define P
   ((f formatp "Floating point format"))

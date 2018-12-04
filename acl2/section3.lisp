@@ -18,7 +18,7 @@
   (equal (- (realfix x))
          (realfix (- x))))
 
-; Section 2 of the paper
+; Section 3 of the paper
 
 (defconst *roundTiedToEven* 'rne)
 
@@ -89,106 +89,106 @@
              acl2::integerp-minus-x)))
 
 (define other-worse
-  ((c? integerp)
-   (q? integerp)
-   (c* integerp)
-   (q* integerp)
+  ((d? integerp)
+   (i? integerp)
+   (d* integerp)
+   (i* integerp)
    (f formatp))
   :returns (yes booleanp)
   (acl2::b*
-   ((n* (D-length c*))
-    (n? (D-length c?))
-    (d* (D-value c* q*))
-    (d? (D-value c? q?))
-    (v (round-f d* f)))
-   (implies (and (not (= d* d?))
-                 (= (round-f d? f) v))
+   ((n* (D-length d*))
+    (n? (D-length d?))
+    (dv* (D-value d* i*))
+    (dv? (D-value d? i?))
+    (v (round-f dv* f)))
+   (implies (and (not (= dv* dv?))
+                 (= (round-f dv? f) v))
             (or (= n? 1)
                 (> n? n*)
                 (and (= n? n*)
-                     (or (< (abs (- d* v)) (abs (- d? v)))
-                         (and (= (abs (- d* v)) (abs (- d? v)))
-                              (D-even c*)
-                              (not (D-even c?))))))))
+                     (or (< (abs (- dv* v)) (abs (- dv? v)))
+                         (and (= (abs (- dv* v)) (abs (- dv? v)))
+                              (D-even d*)
+                              (not (D-even d?))))))))
   ///
   (fty::deffixequiv other-worse :hints (("goal" :in-theory (disable ifix))))
   (defruled other-worse-minus
-    (equal (other-worse (- c?) q? (- c*) q* f)
-           (other-worse c? q? c* q* f))))
+    (equal (other-worse (- d?) i? (- d*) i* f)
+           (other-worse d? i? d* i* f))))
 
 
-(defun-sk all-other-worse (c* q* f)
-  (declare (xargs :guard (and (integerp c*)
-                              (integerp q*)
+(defun-sk all-other-worse (d* i* f)
+  (declare (xargs :guard (and (integerp d*)
+                              (integerp i*)
                               (formatp f))))
-  (forall (c? q?)
-            (or (not (integerp c?))
-                (not (integerp q?))
-                (other-worse c? q? c* q* f)))
-  :rewrite (implies (and (all-other-worse c* q* f)
-                         (integerp c?)
-                         (integerp q?))
-                    (other-worse c? q? c* q* f)))
+  (forall (d? i?)
+            (or (not (integerp d?))
+                (not (integerp i?))
+                (other-worse d? i? d* i* f)))
+  :rewrite (implies (and (all-other-worse d* i* f)
+                         (integerp d?)
+                         (integerp i?))
+                    (other-worse d? i? d* i* f)))
 (in-theory (disable all-other-worse))
 
 (defruled all-other-worse-minus
-   (implies (and (integerp c*)
-                 (integerp q*)
+   (implies (and (integerp d*)
+                 (integerp i*)
                  (formatp f))
-            (equal (all-other-worse (- c*) q* f)
-                   (all-other-worse c* q* f)))
+            (equal (all-other-worse (- d*) i* f)
+                   (all-other-worse d* i* f)))
    :enable acl2::|(- (- x))|
    :use (lemma
         (:instance lemma
-                   (c* (- c*))))
+                   (d* (- d*))))
   :prep-lemmas
   ((defruled lemma
-     (implies (and (integerp c*)
-                   (integerp q*)
+     (implies (and (integerp d*)
+                   (integerp i*)
                    (formatp f))
-              (implies (all-other-worse c* q* f)
-                       (all-other-worse (- c*) q* f)))
+              (implies (all-other-worse d* i* f)
+                       (all-other-worse (- d*) i* f)))
      :enable acl2::|(- (- x))|
      :use
      ((:instance all-other-worse
-                 (c* (- c*)))
+                 (d* (- d*)))
       (:instance all-other-worse-necc
-                 (c? (- (mv-nth 0 (all-other-worse-witness (- c*) q* f))))
-                 (q? (mv-nth 1 (all-other-worse-witness (- c*) q* f))))
+                 (d? (- (mv-nth 0 (all-other-worse-witness (- d*) i* f))))
+                 (i? (mv-nth 1 (all-other-worse-witness (- d*) i* f))))
       (:instance other-worse-minus
-                 (c? (- (mv-nth 0 (all-other-worse-witness (- c*) q* f))))
-                 (q? (mv-nth 1 (all-other-worse-witness (- c*) q* f))))))))
+                 (d? (- (mv-nth 0 (all-other-worse-witness (- d*) i* f))))
+                 (i? (mv-nth 1 (all-other-worse-witness (- d*) i* f))))))))
 
 (define selected-spec
-  ((c integerp)
-   (q integerp)
+  ((d integerp)
+   (i integerp)
    (v real/rationalp)
    (f formatp))
   :returns (yes booleanp :rule-classes ())
   (acl2::b*
-   ((c (ifix c))
-    (q (ifix q))
-    (d (D-value c q))
+   ((d (ifix d))
+    (i (ifix i))
+    (dv (D-value d i))
     (v (realfix v))
     (f (format-fix f)))
-   (and (= (round-f d f) v)
-        (<= 2 (D-length c))
-        (all-other-worse c q f)))
+   (and (= (round-f dv f) v)
+        (<= 2 (D-length d))
+        (all-other-worse d i f)))
   ///
   (fty::deffixequiv selected-spec)
   (defruled selected-spec-minus
-    (equal (selected-spec (- c) q (- v) f)
-           (selected-spec c q v f))
+    (equal (selected-spec (- d) i (- v) f)
+           (selected-spec d i v f))
     :use (:instance lemma
-                    (c (ifix c))
-                    (q (ifix q)))
+                    (d (ifix d))
+                    (i (ifix i)))
     :enable minus-ifix
     :prep-lemmas
     ((defruled lemma
-       (implies (and (integerp c)
-                     (integerp q))
-                (equal (selected-spec (- c) q (- v) f)
-                       (selected-spec c q v f)))
+       (implies (and (integerp d)
+                     (integerp i))
+                (equal (selected-spec (- d) i (- v) f)
+                       (selected-spec d i v f)))
        :enable all-other-worse-minus))))
 
 (define ord2
