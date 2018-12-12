@@ -875,7 +875,7 @@
                      (y (alpha@ enc))
                      (b 2))))
 
-(define shift@
+(define h@
    ((enc acl2::ubyte64p))
    :returns (alpha@ acl2::sbyte32p)
    (if (regular@ enc)
@@ -892,10 +892,10 @@
        (q+flog2pow10{-k}+2 (iadd q+flog2pow10{-k} 2)))
       q+flog2pow10{-k}+2))
    ///
-   (fty::deffixequiv shift@)
+   (fty::deffixequiv h@)
    (acl2::with-arith5-help
-    (defruled shift@-as-alpha@
-      (equal (shift@ enc)
+    (defruled h@-as-alpha@
+      (equal (h@ enc)
              (+ 2 (ord2 (alpha@ enc))))
       :enable (MathUtils.flog2pow10-as-ord2
                ineg iadd sbyte32-suff
@@ -919,25 +919,25 @@
             (and (equal (expe (expt (D) *MathUtils.MIN_EXP*) 2) -971)
                  (equal (expe (expt (D) *MathUtils.MAX_EXP*) 2) 1076))
             :enable ((D))))))))
-   (defruled shift@-as-ord2alpha@
-     (equal (shift@ enc)
+   (defruled h@-as-ord2alpha@
+     (equal (h@ enc)
             (+ 2 (ord2alpha@ enc)))
-     :enable (ord2alpha@-as-alpha@ shift@-as-alpha@))
-   (defrule shift@-linear
-     (and (<= 2 (shift@ enc))
-          (<= (shift@ enc) 6))
+     :enable (ord2alpha@-as-alpha@ h@-as-alpha@))
+   (defrule h@-linear
+     (and (<= 2 (h@ enc))
+          (<= (h@ enc) 6))
      :rule-classes :linear
-     :enable shift@-as-ord2alpha@)
-   (defrule shift@-type
-     (and (integerp (shift@ enc))
-          (< 1 (shift@ enc)))
+     :enable h@-as-ord2alpha@)
+   (defrule h@-type
+     (and (integerp (h@ enc))
+          (< 1 (h@ enc)))
      :rule-classes :type-prescription
-     :disable shift@)
-   (defrule shift@-when-regular
+     :disable h@)
+   (defrule h@-when-regular
      (implies (regular@ enc)
-              (<= 3 (shift@ enc)))
+              (<= 3 (h@ enc)))
      :rule-classes :linear
-     :enable shift@-as-ord2alpha@))
+     :enable h@-as-ord2alpha@))
 
 (define cbl@
   ((enc acl2::ubyte64p))
@@ -1048,7 +1048,7 @@
  (defruled aaaa2
     (implies (and (natp cb)
                 (< cb #fx1p57))
-           (equal (DoubleToDecimal.rop (g0@ enc) (g1@ enc) (lshl cb (shift@ enc)))
+           (equal (DoubleToDecimal.rop (g0@ enc) (g1@ enc) (lshl cb (h@ enc)))
                  (acl2::b*
                   ((g (floorPow10p1 (- (k@ enc))))
                    (approx (* g cb (expt 2 (- (ord2alpha@ enc) 126))))
@@ -1057,26 +1057,26 @@
     :enable (sbyte64-suff aaaa)
   :prep-lemmas
   ((defruled lemma0
-     (<= (expt 2 (shift@ enc)) #fx1p6)
+     (<= (expt 2 (h@ enc)) #fx1p6)
      :rule-classes :linear
-     :cases ((<= (shift@ enc) 6)))
+     :cases ((<= (h@ enc) 6)))
    (acl2::with-arith5-nonlinear-help
     (defrule lemma
       (implies (and (natp cb)
                     (< cb #fx1p57))
-               (equal (lshl cb (shift@ enc))
-                      (* cb (expt 2 (shift@ enc)))))
+               (equal (lshl cb (h@ enc))
+                      (* cb (expt 2 (h@ enc)))))
       :enable (lshl sbyte64-suff lemma0)))
    (acl2::with-arith5-nonlinear-help
     (defrule lemma2
       (implies (and (natp cb)
                     (< cb #fx1p57))
-               (acl2::sbyte64p (* cb (expt 2 (shift@ enc)))))
+               (acl2::sbyte64p (* cb (expt 2 (h@ enc)))))
       :enable (sbyte64-suff lemma0)))
    (defrule lemma3
      (equal (ord2alpha@ enc)
-            (- (shift@ enc) 2))
-     :enable shift@-as-ord2alpha@))))
+            (- (h@ enc) 2))
+     :enable h@-as-ord2alpha@))))
 
 (defruledl round-Newmann-approx-lemma
   (acl2::b*
@@ -1188,7 +1188,7 @@
    (implies
     (and (natp cb)
          (<= cb (+ 2 (* 4 (2^{P-1} (dp))))))
-    (equal (DoubleToDecimal.rop (g0@ enc) (g1@ enc) (lshl cb (shift@ enc)))
+    (equal (DoubleToDecimal.rop (g0@ enc) (g1@ enc) (lshl cb (h@ enc)))
            (round-Newmann (* (alpha@ enc) cb))))
    :enable (round-Newmann-approx-lemma-cb aaaa2 2^{P-1})
    :prep-lemmas
@@ -1201,8 +1201,8 @@
   ((enc acl2::ubyte64p))
   :returns (vb@ acl2::sbyte64p)
   (acl2::b*
-   ((cb<<shift (lshl (cb@ enc) (shift@ enc))))
-   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cb<<shift))
+   ((cb<<h (lshl (cb@ enc) (h@ enc))))
+   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cb<<h))
   ///
   (fty::deffixequiv vb@)
   (defrule vb@-as-round-Newmann
@@ -1214,8 +1214,8 @@
   ((enc acl2::ubyte64p))
   :returns (vbl@ acl2::sbyte64p)
   (acl2::b*
-   ((cbl<<shift (lshl (cbl@ enc) (shift@ enc))))
-   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cbl<<shift))
+   ((cbl<<h (lshl (cbl@ enc) (h@ enc))))
+   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cbl<<h))
   ///
   (fty::deffixequiv vbl@)
   (defrule vbl@-as-round-Newmann
@@ -1227,8 +1227,8 @@
   ((enc acl2::ubyte64p))
   :returns (vbr@ acl2::sbyte64p)
   (acl2::b*
-   ((cbr<<shift (lshl (cbr@ enc) (shift@ enc))))
-   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cbr<<shift))
+   ((cbr<<h (lshl (cbr@ enc) (h@ enc))))
+   (DoubleToDecimal.rop (g0@ enc) (g1@ enc) cbr<<h))
   ///
   (fty::deffixequiv vbr@)
   (defrule vbr@-as-round-Newmann
